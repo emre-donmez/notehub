@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NoteHub</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Tabs Section -->
+        <div class="tabs-container">
+            <button id="scroll-left" class="scroll-btn scroll-left" title="Scroll Left">‹</button>
+            <div class="tabs-list" id="tabs-list">
+                <!-- Tabs will be added dynamically -->
+            </div>
+            <button id="new-tab-btn" class="new-tab-btn" title="New Tab">+</button>
+            <button id="scroll-right" class="scroll-btn scroll-right" title="Scroll Right">›</button>
+        </div>
+
+        <!-- Content Area -->
+        <div class="content-area">
+            <div class="editor-container" id="editor-container">
+                <!-- Note editors will be added dynamically -->
+            </div>
+        </div>
+
+        <!-- Control Bar (moved to bottom) -->
+        <div class="control-bar">
+            <div class="controls">
+                <button id="theme-toggle" class="control-btn" title="Toggle Theme">🌙</button>
+                <button id="export-btn" class="control-btn" title="Export Notes">📤</button>
+                <button id="import-btn" class="control-btn" title="Import Notes">📥</button>
+                <input type="file" id="import-file" accept=".json" style="display: none;">
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
