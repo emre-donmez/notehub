@@ -25,12 +25,25 @@
             </div>
         </div>
 
-        <!-- Control Bar (moved to bottom) -->
+        <!-- Control Bar (moved to bottom, with GitHub and center title) -->
         <div class="control-bar">
+            <div class="bar-left">
+                <a href="https://github.com/emre-donmez/notehub" target="_blank" class="github-link" title="GitHub Repo">
+                    <img src="icons/github.svg" alt="GitHub" class="github-svg">
+                    <span class="repo-link-text">@emre-donmez/notehub</span>
+                </a>
+            </div>
+            <div class="bar-center">NoteHub</div>
             <div class="controls">
-                <button id="theme-toggle" class="control-btn" title="Toggle Theme">🌙</button>
-                <button id="export-btn" class="control-btn" title="Export Notes">📤</button>
-                <button id="import-btn" class="control-btn" title="Import Notes">📥</button>
+                <button id="theme-toggle" class="control-btn icon-btn" title="Toggle Theme">
+                    <img src="icons/dark-mode.svg" alt="Toggle Theme" class="icon theme-icon" id="theme-icon">
+                </button>
+                <button id="export-btn" class="control-btn icon-btn" title="Export Notes">
+                    <img src="icons/download.svg" alt="Export Notes" class="icon">
+                </button>
+                <button id="import-btn" class="control-btn icon-btn" title="Import Notes">
+                    <img src="icons/upload.svg" alt="Import Notes" class="icon">
+                </button>
                 <input type="file" id="import-file" accept=".json" style="display: none;">
             </div>
         </div>

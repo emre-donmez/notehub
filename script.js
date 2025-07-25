@@ -308,17 +308,20 @@ class NoteHub {
     toggleTheme() {
         const currentTheme = document.documentElement.getAttribute('data-theme');
         const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-
+    
         document.documentElement.setAttribute('data-theme', newTheme);
-        this.themeToggle.textContent = newTheme === 'dark' ? '☀️' : '🌙';
-
+    
+        const themeIcon = document.getElementById('theme-icon');
+        themeIcon.src = newTheme === 'dark' ? 'icons/light-mode.svg' : 'icons/dark-mode.svg';
+    
         localStorage.setItem('theme', newTheme);
     }
 
     loadTheme() {
         const savedTheme = localStorage.getItem('theme') || 'light';
         document.documentElement.setAttribute('data-theme', savedTheme);
-        this.themeToggle.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+        const themeIcon = document.getElementById('theme-icon');
+        themeIcon.src = savedTheme === 'dark' ? 'icons/light-mode.svg' : 'icons/dark-mode.svg';
     }
 
     saveToStorage() {
