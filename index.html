@@ -25,7 +25,7 @@
             </div>
         </div>
 
-        <!-- Control Bar (moved to bottom, with GitHub and center title) -->
+        <!-- Control Bar -->
         <div class="control-bar">
             <div class="bar-left">
                 <a href="https://github.com/emre-donmez/notehub" target="_blank" class="github-link" title="GitHub Repo">
@@ -33,8 +33,23 @@
                     <span class="repo-link-text">@emre-donmez/notehub</span>
                 </a>
             </div>
-            <div class="bar-center">NoteHub</div>
+            <div class="bar-center">
+                NoteHub
+            </div>
             <div class="controls">
+                <!-- Sync Status Indicator -->
+                <div id="sync-status" class="sync-status" style="display: none;">
+                    <span class="sync-status-text">Local Storage</span>
+                    <span class="sync-status-icon" id="sync-status-icon">
+                        <img src="icons/user.svg" alt="Local Storage" width="14" height="14">
+                    </span>
+                </div>
+
+                <!-- Cloud Sync Button -->
+                <button id="sync-btn" class="control-btn icon-btn" title="Cloud Sync" style="display: none;">
+                    <img src="icons/cloud.svg" alt="Cloud Sync" class="icon" id="sync-icon">
+                </button>
+
                 <button id="theme-toggle" class="control-btn icon-btn" title="Toggle Theme">
                     <img src="icons/dark-mode.svg" alt="Toggle Theme" class="icon theme-icon" id="theme-icon">
                 </button>
@@ -42,13 +57,98 @@
                     <img src="icons/download.svg" alt="Export Notes" class="icon">
                 </button>
                 <button id="import-btn" class="control-btn icon-btn" title="Import Notes">
-                    <img src="icons/upload.svg" alt="Import Notes" class="icon">
+                    <img src="icons/upload.svg" alt="Upload Notes" class="icon">
                 </button>
                 <input type="file" id="import-file" accept=".json" style="display: none;">
             </div>
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <!-- Cloud Sync Modal -->
+    <div id="sync-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Cloud Sync Settings</h2>
+                <span class="modal-close" id="sync-modal-close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="sync-section">
+                    <h3>Storage Type</h3>
+                    <div class="storage-options">
+                        <label class="radio-option">
+                            <input type="radio" name="storage-type" value="local" id="storage-local" checked>
+                            <span class="radio-label">
+                                <strong>Local Storage</strong>
+                                <br>
+                                <small>Notes are stored only on this device</small>
+                            </span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="storage-type" value="cloud" id="storage-cloud">
+                            <span class="radio-label">
+                                <strong>Cloud Storage</strong>
+                                <br>
+                                <small>Notes are synchronized across devices</small>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="sync-section" id="auth-section" style="display: none;">
+                    <h3>Authentication</h3>
+                    <div id="auth-signed-out" class="auth-state">
+                        <p>Sign in to sync your notes across devices</p>
+                        <button id="sign-in-google" class="auth-btn google-btn">
+                            <img src="icons/google.svg" alt="Google" class="auth-icon">
+                            Sign in with Google
+                        </button>
+                    </div>
+                    <div id="auth-signed-in" class="auth-state" style="display: none;">
+                        <div class="user-info">
+                            <img id="user-avatar" src="" alt="User" class="user-avatar" style="display: none;">
+                            <div class="user-details">
+                                <strong id="user-name"></strong>
+                                <small id="user-email"></small>
+                            </div>
+                        </div>
+                        <button id="sign-out-btn" class="auth-btn sign-out-btn">Sign Out</button>
+                    </div>
+                </div>
+
+                <div class="sync-section" id="sync-actions" style="display: none;">
+                    <h3>Sync Actions</h3>
+                    <div class="sync-info">
+                        <p>Last sync: <span id="last-sync-time">Never</span></p>
+                    </div>
+                    <div class="sync-buttons">
+                        <button id="manual-sync-btn" class="sync-action-btn">
+                            <img src="icons/refresh.svg" alt="Sync" class="btn-icon">
+                            Sync Now
+                        </button>
+                        <button id="download-cloud-btn" class="sync-action-btn">
+                            <img src="icons/download.svg" alt="Download" class="btn-icon">
+                            Download from Cloud
+                        </button>
+                        <button id="upload-local-btn" class="sync-action-btn">
+                            <img src="icons/upload.svg" alt="Upload" class="btn-icon">
+                            Upload to Cloud
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+    <!-- Application Scripts -->
+    <script src="js/env-config.js"></script>
+    <script src="js/firebase-service.js"></script>
+    <script src="js/storage-service.js"></script>
+    <script src="js/cloud-sync-ui.js"></script>
+    <script src="js/main.js"></script>
 </body>
 </html>

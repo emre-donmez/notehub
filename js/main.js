@@ -1,20 +1,88 @@
+/**
+ * NoteHub - A modern note-taking application with cloud sync capabilities
+ * Supports both local storage and Firebase cloud synchronization
+ */
 class NoteHub {
     constructor() {
         this.tabs = [];
         this.activeTabId = null;
         this.tabCounter = 0;
         this.draggedTab = null;
+        this.isInitialized = false;
 
-        this.initializeElements();
-        this.loadFromStorage();
-        this.bindEvents();
+        // Initialize the application
+        this.initializeApp();
+    }
 
-        // Create first tab if none exist
-        if (this.tabs.length === 0) {
-            this.createNewTab();
+    /**
+     * Initialize the application with cloud sync support
+     */
+    async initializeApp() {
+        try {
+            // Load environment configuration
+            const config = await envConfig.loadConfig();
+            
+            // Initialize Firebase if enabled
+            if (envConfig.isFirebaseEnabled() && config.FIREBASE_API_KEY) {
+                await firebaseService.initialize(config);
+            }
+
+            // Initialize storage service
+            await storageService.initialize(config.DEFAULT_STORAGE_TYPE);
+
+            // Initialize UI components
+            this.initializeElements();
+            
+            // Always initialize cloud sync UI (it handles both local and cloud modes)
+            cloudSyncUI.initialize();
+
+            // Load existing data
+            await this.loadFromStorage();
+            
+            // Bind events
+            this.bindEvents();
+
+            // Create first tab if none exist
+            if (this.tabs.length === 0) {
+                this.createNewTab();
+            }
+
+            this.isInitialized = true;
+            console.log('NoteHub initialized successfully');
+        } catch (error) {
+            console.error('Failed to initialize NoteHub:', error);
+            // Fallback to basic initialization without cloud features
+            this.initializeBasic();
         }
     }
 
+    /**
+     * Basic initialization without cloud features (fallback)
+     */
+    initializeBasic() {
+        this.initializeElements();
+        
+        // Try to initialize cloud sync UI even in basic mode
+        try {
+            cloudSyncUI.initialize();
+        } catch (error) {
+            console.warn('Cloud sync UI not available in basic mode:', error);
+        }
+        
+        this.loadFromStorageBasic();
+        this.bindEvents();
+        
+        if (this.tabs.length === 0) {
+            this.createNewTab();
+        }
+
+        this.isInitialized = true;
+        console.log('NoteHub initialized in basic mode');
+    }
+
+    /**
+     * Initialize DOM elements and basic UI
+     */
     initializeElements() {
         this.tabsList = document.getElementById('tabs-list');
         this.editorContainer = document.getElementById('editor-container');
@@ -31,6 +99,9 @@ class NoteHub {
         this.updateScrollButtons();
     }
 
+    /**
+     * Bind event listeners
+     */
     bindEvents() {
         this.newTabBtn.addEventListener('click', () => this.createNewTab());
         this.scrollLeftBtn.addEventListener('click', () => this.scrollTabs('left'));
@@ -69,6 +140,10 @@ class NoteHub {
         });
     }
 
+    /**
+     * Scroll tabs container
+     * @param {string} direction - 'left' or 'right'
+     */
     scrollTabs(direction) {
         const scrollAmount = 200;
         if (direction === 'left') {
@@ -78,6 +153,9 @@ class NoteHub {
         }
     }
 
+    /**
+     * Update scroll button visibility
+     */
     updateScrollButtons() {
         const canScrollLeft = this.tabsList.scrollLeft > 0;
         const canScrollRight = this.tabsList.scrollLeft < (this.tabsList.scrollWidth - this.tabsList.clientWidth);
@@ -86,6 +164,9 @@ class NoteHub {
         this.scrollRightBtn.style.display = canScrollRight ? 'block' : 'none';
     }
 
+    /**
+     * Scroll to make the active tab visible
+     */
     scrollToActiveTab() {
         const activeTab = document.querySelector('.tab.active');
         if (activeTab) {
@@ -100,6 +181,12 @@ class NoteHub {
         }
     }
 
+    /**
+     * Get element after which dragged tab should be dropped
+     * @param {HTMLElement} container - Container element
+     * @param {number} x - X coordinate
+     * @returns {HTMLElement|null} Element or null
+     */
     getDragAfterElement(container, x) {
         const draggableElements = [...container.querySelectorAll('.tab:not(.dragging)')];
         
@@ -115,6 +202,9 @@ class NoteHub {
         }, { offset: Number.NEGATIVE_INFINITY }).element;
     }
 
+    /**
+     * Create a new tab
+     */
     createNewTab() {
         const id = ++this.tabCounter;
         const tab = {
@@ -135,6 +225,10 @@ class NoteHub {
         }, 10);
     }
 
+    /**
+     * Render a tab in the UI
+     * @param {Object} tab - Tab data object
+     */
     renderTab(tab) {
         const tabElement = document.createElement('div');
         tabElement.className = 'tab';
@@ -206,6 +300,10 @@ class NoteHub {
         this.tabsList.appendChild(tabElement);
     }
 
+    /**
+     * Render an editor for a tab
+     * @param {Object} tab - Tab data object
+     */
     renderEditor(tab) {
         const editor = document.createElement('textarea');
         editor.className = 'editor';
@@ -224,7 +322,12 @@ class NoteHub {
         this.editorContainer.appendChild(editor);
     }
 
+    /**
+     * Switch to a specific tab
+     * @param {number} tabId - Tab ID to switch to
+     */
     switchToTab(tabId) {
+        // Remove active class from all tabs and editors
         document.querySelectorAll('.tab.active').forEach(tab => {
             tab.classList.remove('active');
         });
@@ -232,6 +335,7 @@ class NoteHub {
             editor.classList.remove('active');
         });
 
+        // Add active class to target tab and editor
         const tabElement = document.querySelector(`[data-tab-id="${tabId}"]`);
         const editorElement = document.querySelector(`.editor[data-tab-id="${tabId}"]`);
 
@@ -243,17 +347,24 @@ class NoteHub {
         }
     }
 
+    /**
+     * Close a tab
+     * @param {number} tabId - Tab ID to close
+     */
     closeTab(tabId) {
         if (this.tabs.length <= 1) return;
 
         const tabIndex = this.tabs.findIndex(t => t.id === tabId);
         if (tabIndex === -1) return;
 
+        // Remove DOM elements
         document.querySelector(`[data-tab-id="${tabId}"]`).remove();
         document.querySelector(`.editor[data-tab-id="${tabId}"]`).remove();
 
+        // Remove from data array
         this.tabs.splice(tabIndex, 1);
 
+        // Switch to another tab if this was the active one
         if (this.activeTabId === tabId) {
             const newActiveIndex = Math.min(tabIndex, this.tabs.length - 1);
             this.switchToTab(this.tabs[newActiveIndex].id);
@@ -267,6 +378,10 @@ class NoteHub {
         }, 10);
     }
 
+    /**
+     * Enable inline editing of tab title
+     * @param {number} tabId - Tab ID to edit
+     */
     editTabTitle(tabId) {
         const titleElement = document.querySelector(`.tab-title[data-tab-id="${tabId}"]`);
         const currentTitle = titleElement.textContent;
@@ -305,6 +420,9 @@ class NoteHub {
         input.select();
     }
 
+    /**
+     * Toggle between light and dark themes
+     */
     toggleTheme() {
         const currentTheme = document.documentElement.getAttribute('data-theme');
         const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
@@ -317,6 +435,9 @@ class NoteHub {
         localStorage.setItem('theme', newTheme);
     }
 
+    /**
+     * Load theme from localStorage
+     */
     loadTheme() {
         const savedTheme = localStorage.getItem('theme') || 'light';
         document.documentElement.setAttribute('data-theme', savedTheme);
@@ -324,7 +445,10 @@ class NoteHub {
         themeIcon.src = savedTheme === 'dark' ? 'icons/light-mode.svg' : 'icons/dark-mode.svg';
     }
 
-    saveToStorage() {
+    /**
+     * Save data to storage (cloud or local)
+     */
+    async saveToStorage() {
         try {
             const data = {
                 tabs: this.tabs,
@@ -332,15 +456,68 @@ class NoteHub {
                 tabCounter: this.tabCounter
             };
             
-            localStorage.setItem('NoteHub', JSON.stringify(data));
+            // Use storage service if available, otherwise fallback to localStorage
+            if (storageService && this.isInitialized) {
+                await storageService.saveData(data);
+            } else {
+                localStorage.setItem('NoteHub', JSON.stringify(data));
+            }
         } catch (error) {
+            console.error('Failed to save data:', error);
             if (error.name === 'QuotaExceededError') {
                 alert('Storage quota exceeded! Please export your notes.');
             }
         }
     }
 
-    loadFromStorage() {
+    /**
+     * Load data from storage (cloud or local)
+     */
+    async loadFromStorage() {
+        try {
+            let data = null;
+
+            // Use storage service if available
+            if (storageService) {
+                data = await storageService.loadData();
+            } else {
+                // Fallback to basic localStorage loading
+                data = this.loadFromStorageBasic();
+            }
+
+            if (data) {
+                this.tabs = data.tabs || [];
+                this.activeTabId = data.activeTabId;
+                this.tabCounter = data.tabCounter || 0;
+
+                // Render loaded tabs and editors
+                this.tabs.forEach(tab => {
+                    this.renderTab(tab);
+                    this.renderEditor(tab);
+                });
+
+                // Switch to the previously active tab
+                if (this.activeTabId && this.tabs.find(t => t.id === this.activeTabId)) {
+                    this.switchToTab(this.activeTabId);
+                }
+
+                setTimeout(() => {
+                    this.updateScrollButtons();
+                    this.scrollToActiveTab();
+                }, 10);
+            }
+        } catch (error) {
+            console.error('Error loading data:', error);
+            // Fallback to basic loading
+            this.loadFromStorageBasic();
+        }
+    }
+
+    /**
+     * Basic localStorage loading (fallback method)
+     * @returns {Object|null} Loaded data or null
+     */
+    loadFromStorageBasic() {
         const savedData = localStorage.getItem('NoteHub');
         if (savedData) {
             try {
@@ -362,12 +539,19 @@ class NoteHub {
                     this.updateScrollButtons();
                     this.scrollToActiveTab();
                 }, 10);
+
+                return data;
             } catch (error) {
-                console.error('Error loading data:', error);
+                console.error('Error loading data from localStorage:', error);
+                return null;
             }
         }
+        return null;
     }
 
+    /**
+     * Export notes to JSON file
+     */
     exportNotes() {
         const data = {
             tabs: this.tabs,
@@ -388,6 +572,10 @@ class NoteHub {
         URL.revokeObjectURL(url);
     }
 
+    /**
+     * Import notes from JSON file
+     * @param {Event} event - File input change event
+     */
     importNotes(event) {
         const file = event.target.files[0];
         if (!file) return;
@@ -398,21 +586,26 @@ class NoteHub {
                 const data = JSON.parse(e.target.result);
 
                 if (data.tabs && Array.isArray(data.tabs)) {
+                    // Clear existing UI
                     this.tabsList.innerHTML = '';
                     this.editorContainer.innerHTML = '';
 
+                    // Load imported data
                     this.tabs = data.tabs;
                     this.tabCounter = Math.max(...this.tabs.map(t => t.id), 0);
 
+                    // Render imported tabs and editors
                     this.tabs.forEach(tab => {
                         this.renderTab(tab);
                         this.renderEditor(tab);
                     });
 
+                    // Switch to first tab
                     if (this.tabs.length > 0) {
                         this.switchToTab(this.tabs[0].id);
                     }
 
+                    // Save imported data
                     this.saveToStorage();
                     
                     setTimeout(() => {
@@ -434,8 +627,7 @@ class NoteHub {
     }
 }
 
-// Start the application
+// Start the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     new NoteHub();
-
 });
