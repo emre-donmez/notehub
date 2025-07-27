@@ -19,6 +19,7 @@ class CloudSyncUI {
             this.syncModal = document.getElementById('sync-modal');
             this.statusIndicator = document.getElementById('sync-status');
             this.syncButton = document.getElementById('sync-btn');
+            this.conflictModal = document.getElementById('conflict-modal');
             
             // Check if elements exist
             if (!this.syncModal || !this.statusIndicator || !this.syncButton) {
@@ -293,7 +294,18 @@ class CloudSyncUI {
         try {
             if (typeof firebaseService !== 'undefined' && firebaseService.signInWithGoogle) {
                 await firebaseService.signInWithGoogle();
-                this.showNotification('Signed in successfully!', 'success');
+                
+                // Smart sync will be triggered automatically by auth state change
+                // Show a brief notification about successful sign-in
+                this.showNotification('Signed in successfully! Checking for sync...', 'success');
+                
+                // Listen for sync results
+                setTimeout(() => {
+                    // The smart sync might have completed by now
+                    if (storageService.syncEnabled) {
+                        this.showNotification('Cloud sync is now active!', 'info');
+                    }
+                }, 2000);
             }
         } catch (error) {
             console.error('Google sign-in failed:', error);
@@ -322,9 +334,22 @@ class CloudSyncUI {
     async performManualSync() {
         try {
             if (typeof storageService !== 'undefined' && storageService.syncData) {
+                // Show loading state
+                this.showNotification('Syncing...', 'info');
+                
                 const result = await storageService.syncData();
-                this.showNotification(result.message, 'success');
-                this.updateLastSyncTime(new Date().toISOString());
+                
+                // Show result based on action taken
+                if (result.success) {
+                    if (result.action === 'none') {
+                        this.showNotification('Everything is already in sync!', 'info');
+                    } else {
+                        this.showNotification(result.message, 'success');
+                    }
+                    this.updateLastSyncTime(new Date().toISOString());
+                } else {
+                    this.showNotification(result.message || 'Sync failed', 'error');
+                }
             }
         } catch (error) {
             console.error('Manual sync failed:', error);

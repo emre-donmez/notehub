@@ -139,6 +139,41 @@
         </div>
     </div>
 
+    <!-- Sync Conflict Modal -->
+    <div id="conflict-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🔄 Sync Conflict Detected</h2>
+                <p>You have notes both locally and in the cloud. Which version would you like to keep?</p>
+            </div>
+            <div class="modal-body">
+                <div class="conflict-info">
+                    <div class="conflict-option">
+                        <h3>📱 Local Notes</h3>
+                        <p id="local-note-count">0 notes</p>
+                        <small>On this device</small>
+                    </div>
+                    <div class="conflict-option">
+                        <h3>☁️ Cloud Notes</h3>
+                        <p id="cloud-note-count">0 notes</p>
+                        <small>From cloud storage</small>
+                    </div>
+                </div>
+                <div class="conflict-buttons">
+                    <button id="keep-local-btn" class="sync-action-btn conflict-btn">
+                        📱 Keep Local Notes (Upload to Cloud)
+                    </button>
+                    <button id="keep-cloud-btn" class="sync-action-btn conflict-btn primary">
+                        ☁️ Keep Cloud Notes (Download from Cloud)
+                    </button>
+                </div>
+                <p class="conflict-warning">
+                    ⚠️ The other version will be permanently replaced
+                </p>
+            </div>
+        </div>
+    </div>
+
     <!-- Environment Variables -->
     <script src="env.js"></script>
 

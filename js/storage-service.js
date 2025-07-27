@@ -35,11 +35,15 @@ class StorageService {
      * Handle authentication state changes
      * @param {Object|null} user - Firebase user object
      */
-    handleAuthStateChange(user) {
+    async handleAuthStateChange(user) {
         if (user) {
             // User signed in - enable cloud sync if needed
             if (this.storageType === 'cloud') {
-                this.enableSync();
+                const syncEnabled = await this.enableSync();
+                if (syncEnabled) {
+                    // Automatically perform smart sync when user signs in
+                    await this.performSmartSync();
+                }
             }
         } else {
             // User signed out - disable cloud sync
@@ -54,6 +58,235 @@ class StorageService {
                 storageType: this.storageType
             });
         });
+    }
+
+    /**
+     * Perform smart sync when user signs in
+     * Automatically handles data conflicts intelligently
+     * @returns {Promise<Object>} Sync result
+     */
+    async performSmartSync() {
+        if (!this.syncEnabled || !firebaseService.isAuthenticated()) {
+            throw new Error('Smart sync not available - user not authenticated');
+        }
+
+        try {
+            const localData = this.loadFromLocalStorage();
+            const cloudData = await firebaseService.loadUserNotes();
+
+            // Check if both local and cloud have data
+            const hasLocalData = localData && localData.tabs && localData.tabs.length > 0;
+            const hasCloudData = cloudData && cloudData.tabs && cloudData.tabs.length > 0;
+
+            let syncResult = {
+                success: false,
+                action: 'none',
+                message: '',
+                requiresUserInput: false
+            };
+
+            if (!hasLocalData && !hasCloudData) {
+                // No data anywhere - nothing to sync
+                syncResult = {
+                    success: true,
+                    action: 'none',
+                    message: 'No notes found. Start writing your first note!',
+                    requiresUserInput: false
+                };
+            } else if (!hasLocalData && hasCloudData) {
+                // Only cloud has data - download it automatically
+                this.saveToLocalStorage(cloudData);
+                syncResult = {
+                    success: true,
+                    action: 'download',
+                    message: 'Your cloud notes have been downloaded automatically',
+                    requiresUserInput: false
+                };
+                
+                // Show notification
+                this.showSmartSyncNotification(syncResult.message, 'success');
+                
+                // Reload app to show downloaded notes
+                setTimeout(() => window.location.reload(), 1500);
+            } else if (hasLocalData && !hasCloudData) {
+                // Only local has data - upload it automatically
+                await firebaseService.saveUserNotes(localData);
+                syncResult = {
+                    success: true,
+                    action: 'upload',
+                    message: 'Your local notes have been uploaded to cloud automatically',
+                    requiresUserInput: false
+                };
+                
+                // Show notification
+                this.showSmartSyncNotification(syncResult.message, 'success');
+            } else {
+                // Both have data - ask user what to do
+                syncResult = await this.handleDataConflict(localData, cloudData);
+                
+                // Show notification after conflict resolution
+                if (syncResult.success) {
+                    this.showSmartSyncNotification(syncResult.message, 'success');
+                }
+            }
+
+            if (syncResult.success && !syncResult.requiresUserInput) {
+                this.lastSyncTime = new Date().toISOString();
+                localStorage.setItem('NoteHub_LastSyncTime', this.lastSyncTime);
+            }
+
+            return syncResult;
+        } catch (error) {
+            console.error('Smart sync failed:', error);
+            this.showSmartSyncNotification('Smart sync failed. Please try manual sync.', 'error');
+            throw error;
+        }
+    }
+
+    /**
+     * Show smart sync notification
+     * @param {string} message - Notification message
+     * @param {string} type - Notification type
+     */
+    showSmartSyncNotification(message, type) {
+        // Use cloud sync UI notification if available
+        if (typeof cloudSyncUI !== 'undefined' && cloudSyncUI.showNotification) {
+            cloudSyncUI.showNotification(message, type);
+        } else {
+            // Fallback to console log
+            console.log(`Smart Sync [${type}]: ${message}`);
+        }
+    }
+
+    /**
+     * Handle data conflicts when both local and cloud have data
+     * @param {Object} localData - Local storage data
+     * @param {Object} cloudData - Cloud storage data
+     * @returns {Promise<Object>} Sync result
+     */
+    async handleDataConflict(localData, cloudData) {
+        return new Promise((resolve) => {
+            // Show conflict modal and set up data
+            this.showConflictModal(localData, cloudData, resolve);
+        });
+    }
+
+    /**
+     * Show conflict modal with data and event handlers
+     * @param {Object} localData - Local storage data
+     * @param {Object} cloudData - Cloud storage data
+     * @param {Function} resolve - Promise resolve function
+     */
+    showConflictModal(localData, cloudData, resolve) {
+        const modal = document.getElementById('conflict-modal');
+        if (!modal) {
+            console.error('Conflict modal not found in DOM');
+            resolve({
+                success: false,
+                action: 'none',
+                message: 'Conflict modal not available',
+                requiresUserInput: false
+            });
+            return;
+        }
+
+        // Update modal content with note counts
+        const localNoteCount = localData.tabs ? localData.tabs.length : 0;
+        const cloudNoteCount = cloudData.tabs ? cloudData.tabs.length : 0;
+
+        const localCountElement = document.getElementById('local-note-count');
+        const cloudCountElement = document.getElementById('cloud-note-count');
+
+        if (localCountElement) {
+            localCountElement.textContent = `${localNoteCount} note${localNoteCount !== 1 ? 's' : ''}`;
+        }
+        if (cloudCountElement) {
+            cloudCountElement.textContent = `${cloudNoteCount} note${cloudNoteCount !== 1 ? 's' : ''}`;
+        }
+
+        // Get buttons
+        const keepLocalBtn = document.getElementById('keep-local-btn');
+        const keepCloudBtn = document.getElementById('keep-cloud-btn');
+
+        // Remove existing event listeners by cloning nodes
+        const newKeepLocalBtn = keepLocalBtn.cloneNode(true);
+        const newKeepCloudBtn = keepCloudBtn.cloneNode(true);
+        keepLocalBtn.parentNode.replaceChild(newKeepLocalBtn, keepLocalBtn);
+        keepCloudBtn.parentNode.replaceChild(newKeepCloudBtn, keepCloudBtn);
+
+        // Add event listeners
+        newKeepLocalBtn.addEventListener('click', async () => {
+            try {
+                // Upload local data to cloud (replace cloud data)
+                await firebaseService.saveUserNotes(localData);
+                this.hideConflictModal();
+                resolve({
+                    success: true,
+                    action: 'upload',
+                    message: 'Local notes uploaded to cloud. Cloud data has been replaced.',
+                    requiresUserInput: false
+                });
+            } catch (error) {
+                console.error('Failed to upload local data:', error);
+                this.hideConflictModal();
+                resolve({
+                    success: false,
+                    action: 'upload',
+                    message: 'Failed to upload local notes to cloud',
+                    requiresUserInput: false
+                });
+            }
+        });
+
+        newKeepCloudBtn.addEventListener('click', async () => {
+            try {
+                // Download cloud data to local (replace local data)
+                this.saveToLocalStorage(cloudData);
+                this.hideConflictModal();
+                resolve({
+                    success: true,
+                    action: 'download',
+                    message: 'Cloud notes downloaded. Local data has been replaced.',
+                    requiresUserInput: false,
+                    shouldReload: true
+                });
+            } catch (error) {
+                console.error('Failed to download cloud data:', error);
+                this.hideConflictModal();
+                resolve({
+                    success: false,
+                    action: 'download',
+                    message: 'Failed to download cloud notes',
+                    requiresUserInput: false
+                });
+            }
+        });
+
+        // Show modal
+        modal.style.display = 'flex';
+
+        // Close modal on background click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                this.hideConflictModal();
+                resolve({
+                    success: false,
+                    action: 'cancelled',
+                    message: 'Sync cancelled by user',
+                    requiresUserInput: false
+                });
+            }
+        }, { once: true });
+    }
+
+    /**
+     * Hide conflict modal
+     */
+    hideConflictModal() {
+        const modal = document.getElementById('conflict-modal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
     }
 
     /**
@@ -173,6 +406,7 @@ class StorageService {
 
     /**
      * Sync data between local and cloud storage
+     * Uses smart sync logic for better user experience
      * @returns {Promise<Object>} Sync result object
      */
     async syncData() {
@@ -181,52 +415,15 @@ class StorageService {
         }
 
         try {
-            const localData = this.loadFromLocalStorage();
-            const cloudData = await firebaseService.loadUserNotes();
-
-            let syncResult = {
-                success: false,
-                action: 'none',
-                message: ''
-            };
-
-            if (!cloudData && localData) {
-                // Upload local data to cloud
-                await firebaseService.saveUserNotes(localData);
-                syncResult = {
-                    success: true,
-                    action: 'upload',
-                    message: 'Local data uploaded to cloud'
-                };
-            } else if (cloudData && !localData) {
-                // Download cloud data to local
-                this.saveToLocalStorage(cloudData);
-                syncResult = {
-                    success: true,
-                    action: 'download',
-                    message: 'Cloud data downloaded to local'
-                };
-            } else if (cloudData && localData) {
-                // Both exist - need to merge or choose
-                // For now, we'll use cloud data as source of truth
-                this.saveToLocalStorage(cloudData);
-                syncResult = {
-                    success: true,
-                    action: 'download',
-                    message: 'Cloud data synchronized to local'
-                };
-            } else {
-                syncResult = {
-                    success: true,
-                    action: 'none',
-                    message: 'No data to sync'
-                };
+            // Use smart sync for manual sync operations too
+            const result = await this.performSmartSync();
+            
+            // If reload is needed (for conflict resolution), do it
+            if (result.shouldReload) {
+                setTimeout(() => window.location.reload(), 1000);
             }
-
-            this.lastSyncTime = new Date().toISOString();
-            localStorage.setItem('NoteHub_LastSyncTime', this.lastSyncTime);
-
-            return syncResult;
+            
+            return result;
         } catch (error) {
             console.error('Sync failed:', error);
             throw error;
