@@ -103,6 +103,24 @@ class StorageService {
     }
 
     /**
+     * Check if data contains meaningful content (not just empty tabs)
+     * @param {Object} data - Data object to check
+     * @returns {boolean} True if data has meaningful content
+     */
+    hasMeaningfulData(data) {
+        if (!data || !data.tabs || !Array.isArray(data.tabs) || data.tabs.length === 0) {
+            return false;
+        }
+        
+        // Check if any tab has non-empty content or non-default title
+        return data.tabs.some(tab => {
+            const hasContent = tab.content && tab.content.trim().length > 0;
+            const hasCustomTitle = tab.title && !tab.title.match(/^Note \d+$/);
+            return hasContent || hasCustomTitle;
+        });
+    }
+
+    /**
      * Perform smart sync when user signs in
      * Automatically handles data conflicts intelligently
      * @returns {Promise<Object>} Sync result
@@ -116,9 +134,9 @@ class StorageService {
             const localData = this.loadFromLocalStorage();
             const cloudData = await firebaseService.loadUserNotes();
 
-            // Check if both local and cloud have data
-            const hasLocalData = localData && localData.tabs && localData.tabs.length > 0;
-            const hasCloudData = cloudData && cloudData.tabs && cloudData.tabs.length > 0;
+            // Check if both local and cloud have meaningful data
+            const hasLocalData = this.hasMeaningfulData(localData);
+            const hasCloudData = this.hasMeaningfulData(cloudData);
 
             let syncResult = {
                 success: false,
@@ -128,7 +146,7 @@ class StorageService {
             };
 
             if (!hasLocalData && !hasCloudData) {
-                // No data anywhere - nothing to sync
+                // No meaningful data anywhere - nothing to sync
                 syncResult = {
                     success: true,
                     action: 'none',
@@ -136,7 +154,7 @@ class StorageService {
                     requiresUserInput: false
                 };
             } else if (!hasLocalData && hasCloudData) {
-                // Only cloud has data - download it automatically
+                // Only cloud has meaningful data - download it automatically
                 this.saveToLocalStorage(cloudData);
                 syncResult = {
                     success: true,
@@ -151,7 +169,7 @@ class StorageService {
                 // Reload app to show downloaded notes
                 setTimeout(() => window.location.reload(), 1500);
             } else if (hasLocalData && !hasCloudData) {
-                // Only local has data - upload it automatically
+                // Only local has meaningful data - upload it automatically
                 await firebaseService.saveUserNotes(localData);
                 syncResult = {
                     success: true,
@@ -163,7 +181,7 @@ class StorageService {
                 // Show notification
                 this.showSmartSyncNotification(syncResult.message, 'success');
             } else {
-                // Both have data - check if they are identical
+                // Both have meaningful data - check if they are identical
                 if (this.compareData(localData, cloudData)) {
                     // Data is identical - no conflict
                     syncResult = {
