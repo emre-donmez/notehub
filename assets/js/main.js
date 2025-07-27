@@ -6,7 +6,6 @@ class NoteHub {
     constructor() {
         this.tabs = [];
         this.activeTabId = null;
-        this.tabCounter = 0;
         this.draggedTab = null;
         this.isInitialized = false;
 
@@ -66,7 +65,6 @@ class NoteHub {
         this.exportBtn = document.getElementById('export-btn');
         this.importBtn = document.getElementById('import-btn');
         this.importFile = document.getElementById('import-file');
-
         // Load theme
         this.loadTheme();
         this.updateScrollButtons();
@@ -179,7 +177,11 @@ class NoteHub {
      * Create a new tab
      */
     createNewTab() {
-        const id = ++this.tabCounter;
+        // Generate next available ID instead of using counter
+        const existingIds = this.tabs.map(tab => tab.id);
+        const maxId = existingIds.length > 0 ? Math.max(...existingIds) : 0;
+        const id = maxId + 1;
+        
         const tab = {
             id: id,
             title: `Note ${id}`,
@@ -190,7 +192,10 @@ class NoteHub {
         this.renderTab(tab);
         this.renderEditor(tab);
         this.switchToTab(id);
-        this.saveToStorage();
+        
+        // Save new note and update metadata
+        this.saveNote(tab);
+        this.saveMetadata();
         
         setTimeout(() => {
             this.updateScrollButtons();
@@ -266,7 +271,11 @@ class NoteHub {
                 const newTargetIndex = Array.from(this.tabsList.children).indexOf(this.draggedTab);
                 this.tabs.splice(newTargetIndex, 0, draggedTabData);
 
-                this.saveToStorage();
+                this.switchToTab(tabId);
+                this.scrollToActiveTab();
+                
+                // Save updated tab order
+                this.saveMetadata();
             }
         });
 
@@ -288,7 +297,8 @@ class NoteHub {
             const tabData = this.tabs.find(t => t.id === tab.id);
             if (tabData) {
                 tabData.content = editor.value;
-                this.saveToStorage();
+                // Use individual note saving for better performance
+                this.saveNote(tabData);
             }
         });
 
@@ -316,7 +326,12 @@ class NoteHub {
             tabElement.classList.add('active');
             editorElement.classList.add('active');
             editorElement.focus();
-            this.activeTabId = tabId;
+            
+            // Update active tab ID and save metadata if changed
+            if (this.activeTabId !== tabId) {
+                this.activeTabId = tabId;
+                this.saveMetadata();
+            }
         }
     }
 
@@ -334,6 +349,9 @@ class NoteHub {
         document.querySelector(`[data-tab-id="${tabId}"]`).remove();
         document.querySelector(`.editor[data-tab-id="${tabId}"]`).remove();
 
+        // Delete note from storage
+        this.deleteNote(tabId);
+
         // Remove from data array
         this.tabs.splice(tabIndex, 1);
 
@@ -344,7 +362,8 @@ class NoteHub {
             this.scrollToActiveTab();
         }
 
-        this.saveToStorage();
+        // Save updated metadata
+        this.saveMetadata();
         
         setTimeout(() => {
             this.updateScrollButtons();
@@ -373,7 +392,8 @@ class NoteHub {
             const tab = this.tabs.find(t => t.id === tabId);
             if (tab) {
                 tab.title = newTitle;
-                this.saveToStorage();
+                // Use individual note saving for better performance
+                this.saveNote(tab);
             }
         };
 
@@ -445,8 +465,7 @@ class NoteHub {
         try {
             const data = {
                 tabs: this.tabs,
-                activeTabId: this.activeTabId,
-                tabCounter: this.tabCounter
+                activeTabId: this.activeTabId
             };
             
             // Use storage service if available, otherwise fallback to localStorage
@@ -460,6 +479,68 @@ class NoteHub {
             if (error.name === 'QuotaExceededError') {
                 alert('Storage quota exceeded! Please export your notes.');
             }
+        }
+    }
+
+    /**
+     * Save individual note to storage
+     * @param {Object} note - Note object to save
+     */
+    async saveNote(note) {
+        try {
+            if (storageService && this.isInitialized) {
+                await storageService.saveNote(note);
+            } else {
+                // Fallback to saving individual note to localStorage
+                localStorage.setItem(`NoteHub_Note_${note.id}`, JSON.stringify(note));
+            }
+        } catch (error) {
+            console.error('Failed to save note:', error);
+            if (error.name === 'QuotaExceededError') {
+                alert('Storage quota exceeded! Please export your notes.');
+            }
+        }
+    }
+
+    /**
+     * Delete note from storage
+     * @param {number} noteId - Note ID to delete
+     */
+    async deleteNote(noteId) {
+        try {
+            if (storageService && this.isInitialized) {
+                await storageService.deleteNote(noteId);
+            } else {
+                // Fallback to deleting from localStorage
+                localStorage.removeItem(`NoteHub_Note_${noteId}`);
+            }
+        } catch (error) {
+            console.error('Failed to delete note:', error);
+        }
+    }
+
+    /**
+     * Save metadata (tab order, active tab)
+     */
+    async saveMetadata() {
+        try {
+            const metadata = {
+                activeTabId: this.activeTabId,
+                noteOrder: this.tabs.map(tab => tab.id)
+            };
+
+            if (storageService && this.isInitialized) {
+                // For cloud storage, save as profile
+                if (storageService.storageType === 'cloud' && storageService.syncEnabled) {
+                    await firebaseService.saveUserProfile(metadata);
+                }
+                // Always save to localStorage as well
+                localStorage.setItem('NoteHub_Metadata', JSON.stringify(metadata));
+            } else {
+                localStorage.setItem('NoteHub_Metadata', JSON.stringify(metadata));
+            }
+        } catch (error) {
+            console.error('Failed to save metadata:', error);
         }
     }
 
@@ -484,7 +565,6 @@ class NoteHub {
             if (data) {
                 this.tabs = data.tabs || [];
                 this.activeTabId = data.activeTabId;
-                this.tabCounter = data.tabCounter || 0;
 
                 // Render loaded tabs and editors
                 this.tabs.forEach(tab => {
@@ -511,24 +591,49 @@ class NoteHub {
     /**
      * Export notes to JSON file
      */
-    exportNotes() {
-        const data = {
-            tabs: this.tabs,
-            exportDate: new Date().toISOString(),
-            version: '1.0'
-        };
+    async exportNotes() {
+        try {
+            // Collect all notes data
+            const allNotes = [];
+            
+            for (const tab of this.tabs) {
+                // Try to get fresh data from storage first
+                let noteData = tab;
+                if (storageService && this.isInitialized) {
+                    const freshNote = await storageService.loadNote(tab.id);
+                    if (freshNote) {
+                        noteData = freshNote;
+                    }
+                }
+                allNotes.push(noteData);
+            }
 
-        const blob = new Blob([JSON.stringify(data, null, 2)], {
-            type: 'application/json'
-        });
-        const url = URL.createObjectURL(blob);
+            const data = {
+                tabs: allNotes,
+                activeTabId: this.activeTabId,
+                exportDate: new Date().toISOString()
+            };
 
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `my-notes-${new Date().toISOString().split('T')[0]}.json`;
-        a.click();
+            const blob = new Blob([JSON.stringify(data, null, 2)], {
+                type: 'application/json'
+            });
+            const url = URL.createObjectURL(blob);
 
-        URL.revokeObjectURL(url);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `notehub-export-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+
+            URL.revokeObjectURL(url);
+            
+            // Show success notification
+            if (typeof cloudSyncUI !== 'undefined' && cloudSyncUI.showNotification) {
+                cloudSyncUI.showNotification('Notes exported successfully!', 'success');
+            }
+        } catch (error) {
+            console.error('Export failed:', error);
+            alert('Export failed: ' + error.message);
+        }
     }
 
     /**
@@ -540,18 +645,48 @@ class NoteHub {
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             try {
                 const data = JSON.parse(e.target.result);
 
-                if (data.tabs && Array.isArray(data.tabs)) {
+                if (!data.tabs || !Array.isArray(data.tabs)) {
+                    alert('Invalid file format! Please select a valid NoteHub export file.');
+                    return;
+                }
+
+                // Show confirmation dialog
+                const confirmMessage = `This will replace all your current notes with ${data.tabs.length} imported note(s). Are you sure you want to continue?`;
+                if (!confirm(confirmMessage)) {
+                    return;
+                }
+
+                try {
                     // Clear existing UI
                     this.tabsList.innerHTML = '';
                     this.editorContainer.innerHTML = '';
 
-                    // Load imported data
+                    // Delete all existing notes from storage
+                    for (const tab of this.tabs) {
+                        await this.deleteNote(tab.id);
+                    }
+
+                    // Import new data
                     this.tabs = data.tabs;
-                    this.tabCounter = Math.max(...this.tabs.map(t => t.id), 0);
+                    
+                    // Update activeTabId if needed
+                    if (data.activeTabId && this.tabs.find(t => t.id === data.activeTabId)) {
+                        this.activeTabId = data.activeTabId;
+                    } else if (this.tabs.length > 0) {
+                        this.activeTabId = this.tabs[0].id;
+                    }
+
+                    // Save all imported notes
+                    for (const tab of this.tabs) {
+                        await this.saveNote(tab);
+                    }
+
+                    // Save metadata
+                    await this.saveMetadata();
 
                     // Render imported tabs and editors
                     this.tabs.forEach(tab => {
@@ -559,24 +694,28 @@ class NoteHub {
                         this.renderEditor(tab);
                     });
 
-                    // Switch to first tab
+                    // Switch to appropriate tab
                     if (this.tabs.length > 0) {
-                        this.switchToTab(this.tabs[0].id);
+                        this.switchToTab(this.activeTabId || this.tabs[0].id);
                     }
-
-                    // Save imported data
-                    this.saveToStorage();
                     
                     setTimeout(() => {
                         this.updateScrollButtons();
                         this.scrollToActiveTab();
                     }, 10);
                     
-                    alert('Notes imported successfully!');
-                } else {
-                    alert('Invalid file format!');
+                    // Show success notification
+                    if (typeof cloudSyncUI !== 'undefined' && cloudSyncUI.showNotification) {
+                        cloudSyncUI.showNotification(`${data.tabs.length} notes imported successfully!`, 'success');
+                    } else {
+                        alert(`${data.tabs.length} notes imported successfully!`);
+                    }
+                } catch (error) {
+                    console.error('Import process failed:', error);
+                    alert('Import failed during processing: ' + error.message);
                 }
             } catch (error) {
+                console.error('Import file parsing failed:', error);
                 alert('File reading error: ' + error.message);
             }
         };

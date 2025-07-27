@@ -1,6 +1,7 @@
 /**
  * Storage Service
  * Unified storage interface that handles both localStorage and Firebase storage
+ * Now supports document-based storage for better scalability
  */
 class StorageService {
     constructor() {
@@ -8,6 +9,7 @@ class StorageService {
         this.syncEnabled = false;
         this.lastSyncTime = null;
         this.syncStatusCallbacks = [];
+        this.cache = new Map(); // Note cache for better performance
     }
 
     /**
@@ -46,8 +48,9 @@ class StorageService {
                 }
             }
         } else {
-            // User signed out - disable cloud sync
+            // User signed out - disable cloud sync and clear cache
             this.disableSync();
+            this.cache.clear();
         }
         
         // Notify listeners
@@ -70,8 +73,7 @@ class StorageService {
         if (!data1 || !data2) return false;
         
         // Compare basic properties
-        if (data1.activeTabId !== data2.activeTabId || 
-            data1.tabCounter !== data2.tabCounter) {
+        if (data1.activeTabId !== data2.activeTabId) {
             return false;
         }
         
@@ -455,6 +457,96 @@ class StorageService {
     }
 
     /**
+     * Save individual note to current storage
+     * @param {Object} note - Note object to save
+     * @returns {Promise<boolean} True if saved successfully
+     */
+    async saveNote(note) {
+        try {
+            // Update local storage with single note
+            this.saveNoteToLocalStorage(note);
+
+            // Also save to cloud if sync is enabled
+            if (this.syncEnabled && this.storageType === 'cloud') {
+                await firebaseService.saveNote(note);
+                this.lastSyncTime = new Date().toISOString();
+                localStorage.setItem('NoteHub_LastSyncTime', this.lastSyncTime);
+            }
+
+            // Update cache
+            this.cache.set(note.id, note);
+
+            return true;
+        } catch (error) {
+            console.error('Failed to save note:', error);
+            return this.storageType === 'local';
+        }
+    }
+
+    /**
+     * Load note from current storage
+     * @param {number} noteId - Note ID to load
+     * @returns {Promise<Object|null>} Note data or null
+     */
+    async loadNote(noteId) {
+        try {
+            // Check cache first
+            if (this.cache.has(noteId)) {
+                return this.cache.get(noteId);
+            }
+
+            let note = null;
+
+            if (this.syncEnabled && this.storageType === 'cloud') {
+                // Try to load from cloud first
+                note = await firebaseService.loadNote(noteId);
+            }
+
+            if (!note) {
+                // Fallback to localStorage
+                note = this.loadNoteFromLocalStorage(noteId);
+            }
+
+            // Update cache
+            if (note) {
+                this.cache.set(noteId, note);
+            }
+
+            return note;
+        } catch (error) {
+            console.error('Failed to load note:', error);
+            return this.loadNoteFromLocalStorage(noteId);
+        }
+    }
+
+    /**
+     * Delete note from current storage
+     * @param {number} noteId - Note ID to delete
+     * @returns {Promise<boolean>} True if deleted successfully
+     */
+    async deleteNote(noteId) {
+        try {
+            // Delete from local storage
+            this.deleteNoteFromLocalStorage(noteId);
+
+            // Also delete from cloud if sync is enabled
+            if (this.syncEnabled && this.storageType === 'cloud') {
+                await firebaseService.deleteNote(noteId);
+                this.lastSyncTime = new Date().toISOString();
+                localStorage.setItem('NoteHub_LastSyncTime', this.lastSyncTime);
+            }
+
+            // Remove from cache
+            this.cache.delete(noteId);
+
+            return true;
+        } catch (error) {
+            console.error('Failed to delete note:', error);
+            return this.storageType === 'local';
+        }
+    }
+
+    /**
      * Load data from current storage
      * @returns {Promise<Object|null>} Loaded data or null
      */
@@ -505,12 +597,24 @@ class StorageService {
     }
 
     /**
-     * Save data to localStorage
+     * Save data to localStorage using document-based approach
      * @param {Object} data - Data to save
      */
     saveToLocalStorage(data) {
         try {
-            localStorage.setItem('NoteHub', JSON.stringify(data));
+            // Save metadata
+            const metadata = {
+                activeTabId: data.activeTabId,
+                noteOrder: data.tabs ? data.tabs.map(tab => tab.id) : []
+            };
+            localStorage.setItem('NoteHub_Metadata', JSON.stringify(metadata));
+
+            // Save individual notes
+            if (data.tabs && Array.isArray(data.tabs)) {
+                data.tabs.forEach(tab => {
+                    localStorage.setItem(`NoteHub_Note_${tab.id}`, JSON.stringify(tab));
+                });
+            }
         } catch (error) {
             console.error('Failed to save to localStorage:', error);
             throw error;
@@ -518,13 +622,107 @@ class StorageService {
     }
 
     /**
-     * Load data from localStorage
+     * Save individual note to localStorage
+     * @param {Object} note - Note to save
+     */
+    saveNoteToLocalStorage(note) {
+        try {
+            localStorage.setItem(`NoteHub_Note_${note.id}`, JSON.stringify(note));
+        } catch (error) {
+            console.error('Failed to save note to localStorage:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Load individual note from localStorage
+     * @param {number} noteId - Note ID to load
+     * @returns {Object|null} Note data or null
+     */
+    loadNoteFromLocalStorage(noteId) {
+        try {
+            const savedNote = localStorage.getItem(`NoteHub_Note_${noteId}`);
+            return savedNote ? JSON.parse(savedNote) : null;
+        } catch (error) {
+            console.error('Failed to load note from localStorage:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Delete note from localStorage
+     * @param {number} noteId - Note ID to delete
+     */
+    deleteNoteFromLocalStorage(noteId) {
+        try {
+            localStorage.removeItem(`NoteHub_Note_${noteId}`);
+            
+            // Update metadata to remove from noteOrder
+            const metadata = this.loadMetadataFromLocalStorage();
+            if (metadata && metadata.noteOrder) {
+                metadata.noteOrder = metadata.noteOrder.filter(id => id !== noteId);
+                localStorage.setItem('NoteHub_Metadata', JSON.stringify(metadata));
+            }
+        } catch (error) {
+            console.error('Failed to delete note from localStorage:', error);
+        }
+    }
+
+    /**
+     * Load metadata from localStorage
+     * @returns {Object|null} Metadata or null
+     */
+    loadMetadataFromLocalStorage() {
+        try {
+            const savedMetadata = localStorage.getItem('NoteHub_Metadata');
+            return savedMetadata ? JSON.parse(savedMetadata) : null;
+        } catch (error) {
+            console.error('Failed to load metadata from localStorage:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Load data from localStorage using new document-based approach
      * @returns {Object|null} Loaded data or null
      */
     loadFromLocalStorage() {
         try {
+            // Try new format first (document-based)
+            const metadata = this.loadMetadataFromLocalStorage();
+            
+            if (metadata && metadata.noteOrder) {
+                // Load individual notes
+                const tabs = [];
+                for (const noteId of metadata.noteOrder) {
+                    const note = this.loadNoteFromLocalStorage(noteId);
+                    if (note) {
+                        tabs.push(note);
+                    }
+                }
+
+                return {
+                    tabs: tabs,
+                    activeTabId: metadata.activeTabId
+                };
+            }
+
+            // Fallback to old format (single document)
             const savedData = localStorage.getItem('NoteHub');
-            return savedData ? JSON.parse(savedData) : null;
+            if (savedData) {
+                const data = JSON.parse(savedData);
+                
+                // Migrate to new format
+                if (data.tabs && Array.isArray(data.tabs)) {
+                    this.saveToLocalStorage(data);
+                    // Remove old format
+                    localStorage.removeItem('NoteHub');
+                }
+                
+                return data;
+            }
+            
+            return null;
         } catch (error) {
             console.error('Failed to load from localStorage:', error);
             return null;

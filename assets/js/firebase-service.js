@@ -95,41 +95,41 @@ class FirebaseService {
     }
 
     /**
-     * Save user notes to Firestore
-     * @param {Object} data - Notes data to save
+     * Save user profile (metadata) to Firestore
+     * @param {Object} profileData - Profile data with activeTabId, tabCounter, noteOrder
      * @returns {Promise<boolean>} True if saved successfully
      */
-    async saveUserNotes(data) {
+    async saveUserProfile(profileData) {
         if (!this.db || !this.user) {
             throw new Error('Firebase not initialized or user not authenticated');
         }
 
         try {
-            const notesData = {
-                ...data,
+            const profile = {
+                ...profileData,
                 lastModified: firebase.firestore.FieldValue.serverTimestamp(),
                 userId: this.user.uid
             };
 
-            await this.db.collection('userNotes').doc(this.user.uid).set(notesData);
+            await this.db.collection('userProfiles').doc(this.user.uid).set(profile);
             return true;
         } catch (error) {
-            console.error('Failed to save notes to Firebase:', error);
+            console.error('Failed to save user profile to Firebase:', error);
             throw error;
         }
     }
 
     /**
-     * Load user notes from Firestore
-     * @returns {Promise<Object|null>} Notes data or null if not found
+     * Load user profile (metadata) from Firestore
+     * @returns {Promise<Object|null>} Profile data or null if not found
      */
-    async loadUserNotes() {
+    async loadUserProfile() {
         if (!this.db || !this.user) {
             throw new Error('Firebase not initialized or user not authenticated');
         }
 
         try {
-            const doc = await this.db.collection('userNotes').doc(this.user.uid).get();
+            const doc = await this.db.collection('userProfiles').doc(this.user.uid).get();
             
             if (doc.exists) {
                 const data = doc.data();
@@ -140,7 +140,187 @@ class FirebaseService {
             }
             return null;
         } catch (error) {
-            console.error('Failed to load notes from Firebase:', error);
+            console.error('Failed to load user profile from Firebase:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Save individual note to Firestore
+     * @param {Object} note - Note object with id, title, content
+     * @returns {Promise<boolean>}
+     */
+    async saveNote(note) {
+        if (!this.db || !this.user) {
+            throw new Error('Firebase not initialized or user not authenticated');
+        }
+
+        try {
+            const noteData = {
+                id: note.id,
+                title: note.title,
+                content: note.content,
+                lastModified: firebase.firestore.FieldValue.serverTimestamp(),
+                userId: this.user.uid
+            };
+
+            await this.db.collection('notes').doc(`${this.user.uid}_${note.id}`).set(noteData);
+            return true;
+        } catch (error) {
+            console.error('Failed to save note to Firebase:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Load individual note from Firestore
+     * @param {number} noteId - Note ID to load
+     * @returns {Promise<Object|null>} Note data or null if not found
+     */
+    async loadNote(noteId) {
+        if (!this.db || !this.user) {
+            throw new Error('Firebase not initialized or user not authenticated');
+        }
+
+        try {
+            const doc = await this.db.collection('notes').doc(`${this.user.uid}_${noteId}`).get();
+            
+            if (doc.exists) {
+                const data = doc.data();
+                // Remove Firebase-specific fields
+                delete data.lastModified;
+                delete data.userId;
+                return data;
+            }
+            return null;
+        } catch (error) {
+            console.error('Failed to load note from Firebase:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Load all user notes from Firestore
+     * @returns {Promise<Array>} Array of note objects
+     */
+    async loadAllUserNotes() {
+        if (!this.db || !this.user) {
+            throw new Error('Firebase not initialized or user not authenticated');
+        }
+
+        try {
+            const querySnapshot = await this.db.collection('notes')
+                .where('userId', '==', this.user.uid)
+                .get();
+            
+            const notes = [];
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                // Remove Firebase-specific fields
+                delete data.lastModified;
+                delete data.userId;
+                notes.push(data);
+            });
+
+            return notes;
+        } catch (error) {
+            console.error('Failed to load all notes from Firebase:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Delete note from Firestore
+     * @param {number} noteId - Note ID to delete
+     * @returns {Promise<boolean>} True if deleted successfully
+     */
+    async deleteNote(noteId) {
+        if (!this.db || !this.user) {
+            throw new Error('Firebase not initialized or user not authenticated');
+        }
+
+        try {
+            await this.db.collection('notes').doc(`${this.user.uid}_${noteId}`).delete();
+            return true;
+        } catch (error) {
+            console.error('Failed to delete note from Firebase:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Save user notes using new document-based structure
+     * @param {Object} data - Notes data to save (backwards compatibility)
+     * @returns {Promise<boolean>} True if saved successfully
+     */
+    async saveUserNotes(data) {
+        if (!this.db || !this.user) {
+            throw new Error('Firebase not initialized or user not authenticated');
+        }
+
+        try {
+            // Extract profile data
+            const profileData = {
+                activeTabId: data.activeTabId,
+                noteOrder: data.tabs ? data.tabs.map(tab => tab.id) : []
+            };
+
+            // Save profile
+            await this.saveUserProfile(profileData);
+
+            // Save individual notes
+            if (data.tabs && Array.isArray(data.tabs)) {
+                const savePromises = data.tabs.map(tab => this.saveNote(tab));
+                await Promise.all(savePromises);
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Failed to save user notes:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Load user notes using new document-based structure
+     * @returns {Promise<Object|null>} Notes data in old format (backwards compatibility)
+     */
+    async loadUserNotes() {
+        if (!this.db || !this.user) {
+            throw new Error('Firebase not initialized or user not authenticated');
+        }
+
+        try {
+            // Load profile and notes
+            const [profile, allNotes] = await Promise.all([
+                this.loadUserProfile(),
+                this.loadAllUserNotes()
+            ]);
+
+            if (!profile && allNotes.length === 0) {
+                return null;
+            }
+
+            // Sort notes according to noteOrder from profile
+            let sortedNotes = allNotes;
+            if (profile && profile.noteOrder) {
+                sortedNotes = profile.noteOrder
+                    .map(id => allNotes.find(note => note.id === id))
+                    .filter(note => note !== undefined);
+                
+                // Add any notes not in the order (in case of inconsistency)
+                const orderedIds = new Set(profile.noteOrder);
+                const unorderedNotes = allNotes.filter(note => !orderedIds.has(note.id));
+                sortedNotes.push(...unorderedNotes);
+            }
+
+            // Return in old format for backwards compatibility
+            return {
+                tabs: sortedNotes,
+                activeTabId: profile?.activeTabId || (sortedNotes.length > 0 ? sortedNotes[0].id : null)
+            };
+        } catch (error) {
+            console.error('Failed to load user notes:', error);
             throw error;
         }
     }
