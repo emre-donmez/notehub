@@ -611,9 +611,7 @@ body {
 }
 
 .sync-action-btn {
-    display: flex;
     align-items: center;
-    gap: 12px;
     padding: 12px 16px;
     border: 1px solid var(--border-color);
     border-radius: 8px;
@@ -684,6 +682,7 @@ input[type="file"] {
     display: flex;
     gap: 16px;
     margin-bottom: 24px;
+    padding: 16px;
 }
 
 .conflict-option {
@@ -717,6 +716,7 @@ input[type="file"] {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    margin: 25px;
 }
 
 .conflict-btn {
@@ -742,11 +742,17 @@ input[type="file"] {
 }
 
 .conflict-warning {
-    margin: 16px 0 0 0;
+    margin: 16px 0 16px 0;
     font-size: 12px;
     color: var(--text-secondary);
     text-align: center;
     font-style: italic;
+}
+
+.sync-modal-header-text{
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 @media (max-width: 768px) {

@@ -61,6 +61,48 @@ class StorageService {
     }
 
     /**
+     * Compare two data objects to check if they are identical
+     * @param {Object} data1 - First data object
+     * @param {Object} data2 - Second data object
+     * @returns {boolean} True if data is identical
+     */
+    compareData(data1, data2) {
+        if (!data1 || !data2) return false;
+        
+        // Compare basic properties
+        if (data1.activeTabId !== data2.activeTabId || 
+            data1.tabCounter !== data2.tabCounter) {
+            return false;
+        }
+        
+        // Compare tabs array
+        const tabs1 = data1.tabs || [];
+        const tabs2 = data2.tabs || [];
+        
+        if (tabs1.length !== tabs2.length) {
+            return false;
+        }
+        
+        // Sort tabs by id to ensure consistent comparison
+        const sortedTabs1 = [...tabs1].sort((a, b) => a.id - b.id);
+        const sortedTabs2 = [...tabs2].sort((a, b) => a.id - b.id);
+        
+        // Compare each tab
+        for (let i = 0; i < sortedTabs1.length; i++) {
+            const tab1 = sortedTabs1[i];
+            const tab2 = sortedTabs2[i];
+            
+            if (tab1.id !== tab2.id || 
+                tab1.title !== tab2.title || 
+                tab1.content !== tab2.content) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+
+    /**
      * Perform smart sync when user signs in
      * Automatically handles data conflicts intelligently
      * @returns {Promise<Object>} Sync result
@@ -121,12 +163,26 @@ class StorageService {
                 // Show notification
                 this.showSmartSyncNotification(syncResult.message, 'success');
             } else {
-                // Both have data - ask user what to do
-                syncResult = await this.handleDataConflict(localData, cloudData);
-                
-                // Show notification after conflict resolution
-                if (syncResult.success) {
-                    this.showSmartSyncNotification(syncResult.message, 'success');
+                // Both have data - check if they are identical
+                if (this.compareData(localData, cloudData)) {
+                    // Data is identical - no conflict
+                    syncResult = {
+                        success: true,
+                        action: 'none',
+                        message: 'Local and cloud data are already in sync!',
+                        requiresUserInput: false
+                    };
+                    
+                    // Show notification
+                    this.showSmartSyncNotification(syncResult.message, 'info');
+                } else {
+                    // Data is different - ask user what to do
+                    syncResult = await this.handleDataConflict(localData, cloudData);
+                    
+                    // Show notification after conflict resolution
+                    if (syncResult.success) {
+                        this.showSmartSyncNotification(syncResult.message, 'success');
+                    }
                 }
             }
 
