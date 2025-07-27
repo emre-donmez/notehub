@@ -19,16 +19,13 @@ class NoteHub {
      */
     async initializeApp() {
         try {
-            // Load environment configuration
-            const config = await envConfig.loadConfig();
-            
             // Initialize Firebase if enabled
-            if (envConfig.isFirebaseEnabled() && config.FIREBASE_API_KEY) {
-                await firebaseService.initialize(config);
+            if (appConfig.ENABLE_FIREBASE) {
+                await firebaseService.initialize();
             }
 
             // Initialize storage service
-            await storageService.initialize(config.DEFAULT_STORAGE_TYPE);
+            await storageService.initialize(appConfig.DEFAULT_STORAGE_TYPE);
 
             // Initialize UI components
             this.initializeElements();

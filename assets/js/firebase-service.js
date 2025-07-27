@@ -13,11 +13,10 @@ class FirebaseService {
     }
 
     /**
-     * Initialize Firebase with configuration
-     * @param {Object} config - Firebase configuration
+     * Initialize Firebase with direct configuration
      * @returns {Promise<boolean>} True if initialized successfully
      */
-    async initialize(config) {
+    async initialize() {
         if (this.isInitialized) {
             return true;
         }
@@ -29,18 +28,9 @@ class FirebaseService {
                 return false;
             }
 
-            const firebaseConfig = {
-                apiKey: config.FIREBASE_API_KEY,
-                authDomain: config.FIREBASE_AUTH_DOMAIN,
-                projectId: config.FIREBASE_PROJECT_ID,
-                storageBucket: config.FIREBASE_STORAGE_BUCKET,
-                messagingSenderId: config.FIREBASE_MESSAGING_SENDER_ID,
-                appId: config.FIREBASE_APP_ID
-            };
-
-            // Validate configuration
-            if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
-                console.error('Invalid Firebase configuration');
+            // Check if Firebase config is available
+            if (typeof firebaseConfig === 'undefined') {
+                console.error('Firebase configuration not found');
                 return false;
             }
 
