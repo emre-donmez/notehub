@@ -409,13 +409,33 @@ class NoteHub {
     }
 
     /**
-     * Load theme from localStorage
+     * Load theme from localStorage or detect system preference
      */
     loadTheme() {
-        const savedTheme = localStorage.getItem('theme') || 'light';
+        let savedTheme = localStorage.getItem('theme');
+        
+        // If no theme is saved, detect system preference
+        if (!savedTheme) {
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            savedTheme = prefersDark ? 'dark' : 'light';
+        }
+        
         document.documentElement.setAttribute('data-theme', savedTheme);
         const themeIcon = document.getElementById('theme-icon');
         themeIcon.src = savedTheme === 'dark' ? 'assets/icons/light-mode.svg' : 'assets/icons/dark-mode.svg';
+        
+        // Listen for system theme changes only if no theme is manually saved
+        if (!localStorage.getItem('theme') && window.matchMedia) {
+            const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+            mediaQuery.addEventListener('change', (e) => {
+                // Only auto-update if user hasn't manually set a theme
+                if (!localStorage.getItem('theme')) {
+                    const newTheme = e.matches ? 'dark' : 'light';
+                    document.documentElement.setAttribute('data-theme', newTheme);
+                    themeIcon.src = newTheme === 'dark' ? 'assets/icons/light-mode.svg' : 'assets/icons/dark-mode.svg';
+                }
+            });
+        }
     }
 
     /**
