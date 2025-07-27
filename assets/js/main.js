@@ -30,7 +30,7 @@ class NoteHub {
             // Initialize UI components
             this.initializeElements();
             
-            // Always initialize cloud sync UI (it handles both local and cloud modes)
+            // Initialize cloud sync UI
             cloudSyncUI.initialize();
 
             // Load existing data
@@ -48,33 +48,9 @@ class NoteHub {
             console.log('NoteHub initialized successfully');
         } catch (error) {
             console.error('Failed to initialize NoteHub:', error);
-            // Fallback to basic initialization without cloud features
-            this.initializeBasic();
+            // Show error to user but don't fallback to basic mode
+            alert('Failed to initialize NoteHub. Please refresh the page.');
         }
-    }
-
-    /**
-     * Basic initialization without cloud features (fallback)
-     */
-    initializeBasic() {
-        this.initializeElements();
-        
-        // Try to initialize cloud sync UI even in basic mode
-        try {
-            cloudSyncUI.initialize();
-        } catch (error) {
-            console.warn('Cloud sync UI not available in basic mode:', error);
-        }
-        
-        this.loadFromStorageBasic();
-        this.bindEvents();
-        
-        if (this.tabs.length === 0) {
-            this.createNewTab();
-        }
-
-        this.isInitialized = true;
-        console.log('NoteHub initialized in basic mode');
     }
 
     /**
@@ -479,7 +455,10 @@ class NoteHub {
                 data = await storageService.loadData();
             } else {
                 // Fallback to basic localStorage loading
-                data = this.loadFromStorageBasic();
+                const savedData = localStorage.getItem('NoteHub');
+                if (savedData) {
+                    data = JSON.parse(savedData);
+                }
             }
 
             if (data) {
@@ -505,45 +484,8 @@ class NoteHub {
             }
         } catch (error) {
             console.error('Error loading data:', error);
-            // Fallback to basic loading
-            this.loadFromStorageBasic();
+            // If loading fails, just continue with empty state
         }
-    }
-
-    /**
-     * Basic localStorage loading (fallback method)
-     * @returns {Object|null} Loaded data or null
-     */
-    loadFromStorageBasic() {
-        const savedData = localStorage.getItem('NoteHub');
-        if (savedData) {
-            try {
-                const data = JSON.parse(savedData);
-                this.tabs = data.tabs || [];
-                this.activeTabId = data.activeTabId;
-                this.tabCounter = data.tabCounter || 0;
-
-                this.tabs.forEach(tab => {
-                    this.renderTab(tab);
-                    this.renderEditor(tab);
-                });
-
-                if (this.activeTabId && this.tabs.find(t => t.id === this.activeTabId)) {
-                    this.switchToTab(this.activeTabId);
-                }
-
-                setTimeout(() => {
-                    this.updateScrollButtons();
-                    this.scrollToActiveTab();
-                }, 10);
-
-                return data;
-            } catch (error) {
-                console.error('Error loading data from localStorage:', error);
-                return null;
-            }
-        }
-        return null;
     }
 
     /**
