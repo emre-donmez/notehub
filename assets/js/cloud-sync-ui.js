@@ -45,28 +45,22 @@ class CloudSyncUI {
      */
     bindEvents() {
         // Sync button click
-        if (this.syncButton) {
-            this.syncButton.addEventListener('click', () => {
-                this.openSyncModal();
-            });
-        }
-
+        this.syncButton.addEventListener('click', () => {
+            this.openSyncModal();
+        });
+        
         // Modal close events
         const closeBtn = document.getElementById('sync-modal-close');
-        if (closeBtn) {
-            closeBtn.addEventListener('click', () => {
-                this.closeSyncModal();
-            });
-        }
-
+        closeBtn.addEventListener('click', () => {
+            this.closeSyncModal();
+        });
+        
         // Click outside modal to close
-        if (this.syncModal) {
-            this.syncModal.addEventListener('click', (e) => {
-                if (e.target === this.syncModal) {
-                    this.closeSyncModal();
-                }
-            });
-        }
+        this.syncModal.addEventListener('click', (e) => {
+            if (e.target === this.syncModal) {
+                this.closeSyncModal();
+            }
+        });
 
         // Storage type change
         document.querySelectorAll('input[name="storage-type"]').forEach(radio => {
@@ -77,40 +71,14 @@ class CloudSyncUI {
 
         // Authentication buttons
         const googleBtn = document.getElementById('sign-in-google');
-        if (googleBtn) {
-            googleBtn.addEventListener('click', () => {
-                this.signInWithGoogle();
-            });
-        }
+        googleBtn.addEventListener('click', () => {
+            this.signInWithGoogle();
+        });
 
         const signOutBtn = document.getElementById('sign-out-btn');
-        if (signOutBtn) {
-            signOutBtn.addEventListener('click', () => {
-                this.signOut();
-            });
-        }
-
-        // Sync action buttons
-        const manualSyncBtn = document.getElementById('manual-sync-btn');
-        if (manualSyncBtn) {
-            manualSyncBtn.addEventListener('click', () => {
-                this.performManualSync();
-            });
-        }
-
-        const downloadBtn = document.getElementById('download-cloud-btn');
-        if (downloadBtn) {
-            downloadBtn.addEventListener('click', () => {
-                this.downloadFromCloud();
-            });
-        }
-
-        const uploadBtn = document.getElementById('upload-local-btn');
-        if (uploadBtn) {
-            uploadBtn.addEventListener('click', () => {
-                this.uploadToCloud();
-            });
-        }
+        signOutBtn.addEventListener('click', () => {
+            this.signOut();
+        });
 
         // Listen to storage service status changes
         if (typeof storageService !== 'undefined' && storageService.onSyncStatusChange) {
@@ -229,14 +197,12 @@ class CloudSyncUI {
      */
     updateLastSyncTime(lastSyncTime) {
         const element = document.getElementById('last-sync-time');
-        if (element) {
-            if (lastSyncTime) {
-                const date = new Date(lastSyncTime);
-                element.textContent = date.toLocaleString();
-            } else {
-                element.textContent = 'Never';
-            }
-        }
+        if (lastSyncTime) {
+            const date = new Date(lastSyncTime);
+            element.textContent = date.toLocaleString();
+        } else {
+            element.textContent = 'Never';
+        }        
     }
 
     /**
@@ -249,21 +215,19 @@ class CloudSyncUI {
         const statusIconContainer = document.getElementById('sync-status-icon');
         const statusIcon = statusIconContainer ? statusIconContainer.querySelector('img') : null;
 
-        if (statusText && statusIcon) {
-            if (status.storageType === 'cloud' && status.isAuthenticated) {
-                statusText.textContent = 'Cloud Sync';
-                statusIcon.src = 'assets/icons/cloud.svg';
-                statusIcon.alt = 'Cloud Sync';
-            } else if (status.storageType === 'cloud' && !status.isAuthenticated) {
-                statusText.textContent = 'Sign In Required';
-                statusIcon.src = 'assets/icons/lock.svg';
-                statusIcon.alt = 'Sign In Required';
-            } else {
-                statusText.textContent = 'Local Storage';
-                statusIcon.src = 'assets/icons/user.svg';
-                statusIcon.alt = 'Local Storage';
-            }
-        }
+        if (status.storageType === 'cloud' && status.isAuthenticated) {
+            statusText.textContent = 'Cloud Sync';
+            statusIcon.src = 'assets/icons/cloud.svg';
+            statusIcon.alt = 'Cloud Sync';
+        } else if (status.storageType === 'cloud' && !status.isAuthenticated) {
+            statusText.textContent = 'Sign In Required';
+            statusIcon.src = 'assets/icons/lock.svg';
+            statusIcon.alt = 'Sign In Required';
+        } else {
+            statusText.textContent = 'Local Storage';
+            statusIcon.src = 'assets/icons/user.svg';
+            statusIcon.alt = 'Local Storage';
+        }        
 
         // Update modal if open
         if (this.isModalOpen) {
@@ -297,15 +261,7 @@ class CloudSyncUI {
                 
                 // Smart sync will be triggered automatically by auth state change
                 // Show a brief notification about successful sign-in
-                this.showNotification('Signed in successfully! Checking for sync...', 'success');
-                
-                // Listen for sync results
-                setTimeout(() => {
-                    // The smart sync might have completed by now
-                    if (storageService.syncEnabled) {
-                        this.showNotification('Cloud sync is now active!', 'info');
-                    }
-                }, 2000);
+                this.showNotification('Signed in successfully! Your notes will sync automatically.', 'success');
             }
         } catch (error) {
             console.error('Google sign-in failed:', error);
@@ -325,88 +281,6 @@ class CloudSyncUI {
         } catch (error) {
             console.error('Sign-out failed:', error);
             this.showNotification('Sign-out failed. Please try again.', 'error');
-        }
-    }
-
-    /**
-     * Perform manual sync
-     */
-    async performManualSync() {
-        try {
-            if (typeof storageService !== 'undefined' && storageService.syncData) {
-                // Show loading state
-                this.showNotification('Syncing...', 'info');
-                
-                const result = await storageService.syncData();
-                
-                // Show result based on action taken
-                if (result.success) {
-                    if (result.action === 'none') {
-                        this.showNotification('Everything is already in sync!', 'info');
-                    } else {
-                        this.showNotification(result.message, 'success');
-                    }
-                    this.updateLastSyncTime(new Date().toISOString());
-                } else {
-                    this.showNotification(result.message || 'Sync failed', 'error');
-                }
-            }
-        } catch (error) {
-            console.error('Manual sync failed:', error);
-            this.showNotification('Sync failed. Please try again.', 'error');
-        }
-    }
-
-    /**
-     * Download data from cloud
-     */
-    async downloadFromCloud() {
-        if (!confirm('This will replace your local notes with cloud data. Continue?')) {
-            return;
-        }
-
-        try {
-            if (typeof firebaseService !== 'undefined' && firebaseService.loadUserNotes) {
-                const cloudData = await firebaseService.loadUserNotes();
-                if (cloudData) {
-                    if (typeof storageService !== 'undefined' && storageService.saveToLocalStorage) {
-                        storageService.saveToLocalStorage(cloudData);
-                        // Trigger app reload to reflect changes
-                        window.location.reload();
-                    }
-                } else {
-                    this.showNotification('No cloud data found', 'info');
-                }
-            }
-        } catch (error) {
-            console.error('Download failed:', error);
-            this.showNotification('Download failed. Please try again.', 'error');
-        }
-    }
-
-    /**
-     * Upload local data to cloud
-     */
-    async uploadToCloud() {
-        if (!confirm('This will replace your cloud data with local notes. Continue?')) {
-            return;
-        }
-
-        try {
-            if (typeof storageService !== 'undefined' && storageService.loadFromLocalStorage && 
-                typeof firebaseService !== 'undefined' && firebaseService.saveUserNotes) {
-                
-                const localData = storageService.loadFromLocalStorage();
-                if (localData) {
-                    await firebaseService.saveUserNotes(localData);
-                    this.showNotification('Local data uploaded to cloud!', 'success');
-                } else {
-                    this.showNotification('No local data found', 'info');
-                }
-            }
-        } catch (error) {
-            console.error('Upload failed:', error);
-            this.showNotification('Upload failed. Please try again.', 'error');
         }
     }
 

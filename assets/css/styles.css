@@ -604,33 +604,13 @@ body {
     color: var(--text-secondary);
 }
 
-.sync-buttons {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+.sync-info p {
+    margin: 0 0 8px 0;
 }
 
-.sync-action-btn {
-    align-items: center;
-    padding: 12px 16px;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    background-color: var(--bg-primary);
-    color: var(--text-primary);
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 14px;
-}
-
-.sync-action-btn:hover {
-    background-color: var(--hover-color);
-    border-color: var(--accent-color);
-    transform: translateY(-1px);
-}
-
-.btn-icon {
-    width: 16px;
-    height: 16px;
+.sync-info small {
+    color: var(--text-secondary);
+    font-style: italic;
 }
 
 /* Notifications */
