@@ -4,7 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NoteHub</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <link rel="icon" type="image/png" href="assets/favicon/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="assets/favicon/favicon.svg" />
+    <link rel="shortcut icon" href="assets/favicon/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/favicon/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="NoteHub" />
+    <link rel="manifest" href="assets/favicon/site.webmanifest" />
 </head>
 <body>
     <div class="app-container">
@@ -29,7 +35,7 @@
         <div class="control-bar">
             <div class="bar-left">
                 <a href="https://github.com/emre-donmez/notehub" target="_blank" class="github-link" title="GitHub Repo">
-                    <img src="icons/github.svg" alt="GitHub" class="github-svg">
+                    <img src="assets/icons/github.svg" alt="GitHub" class="github-svg">
                     <span class="repo-link-text">@emre-donmez/notehub</span>
                 </a>
             </div>
@@ -41,23 +47,21 @@
                 <div id="sync-status" class="sync-status" style="display: none;">
                     <span class="sync-status-text">Local Storage</span>
                     <span class="sync-status-icon" id="sync-status-icon">
-                        <img src="icons/user.svg" alt="Local Storage" width="14" height="14">
+                        <img src="assets/icons/user.svg" alt="Local Storage" width="14" height="14">
                     </span>
                 </div>
 
-                <!-- Cloud Sync Button -->
                 <button id="sync-btn" class="control-btn icon-btn" title="Cloud Sync" style="display: none;">
-                    <img src="icons/cloud.svg" alt="Cloud Sync" class="icon" id="sync-icon">
+                    <img src="assets/icons/cloud.svg" alt="Cloud Sync" class="icon" id="sync-icon">
                 </button>
-
                 <button id="theme-toggle" class="control-btn icon-btn" title="Toggle Theme">
-                    <img src="icons/dark-mode.svg" alt="Toggle Theme" class="icon theme-icon" id="theme-icon">
+                    <img src="assets/icons/dark-mode.svg" alt="Toggle Theme" class="icon theme-icon" id="theme-icon">
                 </button>
                 <button id="export-btn" class="control-btn icon-btn" title="Export Notes">
-                    <img src="icons/download.svg" alt="Export Notes" class="icon">
+                    <img src="assets/icons/download.svg" alt="Export Notes" class="icon">
                 </button>
                 <button id="import-btn" class="control-btn icon-btn" title="Import Notes">
-                    <img src="icons/upload.svg" alt="Upload Notes" class="icon">
+                    <img src="assets/icons/upload.svg" alt="Upload Notes" class="icon">
                 </button>
                 <input type="file" id="import-file" accept=".json" style="display: none;">
             </div>
@@ -99,7 +103,7 @@
                     <div id="auth-signed-out" class="auth-state">
                         <p>Sign in to sync your notes across devices</p>
                         <button id="sign-in-google" class="auth-btn google-btn">
-                            <img src="icons/google.svg" alt="Google" class="auth-icon">
+                            <img src="assets/icons/google.svg" alt="Google" class="auth-icon">
                             Sign in with Google
                         </button>
                     </div>
@@ -122,15 +126,15 @@
                     </div>
                     <div class="sync-buttons">
                         <button id="manual-sync-btn" class="sync-action-btn">
-                            <img src="icons/refresh.svg" alt="Sync" class="btn-icon">
+                            <img src="assets/icons/refresh.svg" alt="Sync" class="btn-icon">
                             Sync Now
                         </button>
                         <button id="download-cloud-btn" class="sync-action-btn">
-                            <img src="icons/download.svg" alt="Download" class="btn-icon">
+                            <img src="assets/icons/download.svg" alt="Download" class="btn-icon">
                             Download from Cloud
                         </button>
                         <button id="upload-local-btn" class="sync-action-btn">
-                            <img src="icons/upload.svg" alt="Upload" class="btn-icon">
+                            <img src="assets/icons/upload.svg" alt="Upload" class="btn-icon">
                             Upload to Cloud
                         </button>
                     </div>
@@ -185,10 +189,10 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
     <!-- Application Scripts -->
-    <script src="js/env-config.js"></script>
-    <script src="js/firebase-service.js"></script>
-    <script src="js/storage-service.js"></script>
-    <script src="js/cloud-sync-ui.js"></script>
-    <script src="js/main.js"></script>
+    <script src="assets/js/env-config.js"></script>
+    <script src="assets/js/firebase-service.js"></script>
+    <script src="assets/js/storage-service.js"></script>
+    <script src="assets/js/cloud-sync-ui.js"></script>
+    <script src="assets/js/main.js"></script>
 </body>
 </html>

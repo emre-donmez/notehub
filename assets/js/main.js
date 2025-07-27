@@ -430,7 +430,7 @@ class NoteHub {
         document.documentElement.setAttribute('data-theme', newTheme);
     
         const themeIcon = document.getElementById('theme-icon');
-        themeIcon.src = newTheme === 'dark' ? 'icons/light-mode.svg' : 'icons/dark-mode.svg';
+        themeIcon.src = newTheme === 'dark' ? 'assets/icons/light-mode.svg' : 'assets/icons/dark-mode.svg';
     
         localStorage.setItem('theme', newTheme);
     }
@@ -442,7 +442,7 @@ class NoteHub {
         const savedTheme = localStorage.getItem('theme') || 'light';
         document.documentElement.setAttribute('data-theme', savedTheme);
         const themeIcon = document.getElementById('theme-icon');
-        themeIcon.src = savedTheme === 'dark' ? 'icons/light-mode.svg' : 'icons/dark-mode.svg';
+        themeIcon.src = savedTheme === 'dark' ? 'assets/icons/light-mode.svg' : 'assets/icons/dark-mode.svg';
     }
 
     /**

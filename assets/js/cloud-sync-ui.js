@@ -252,15 +252,15 @@ class CloudSyncUI {
         if (statusText && statusIcon) {
             if (status.storageType === 'cloud' && status.isAuthenticated) {
                 statusText.textContent = 'Cloud Sync';
-                statusIcon.src = 'icons/cloud.svg';
+                statusIcon.src = 'assets/icons/cloud.svg';
                 statusIcon.alt = 'Cloud Sync';
             } else if (status.storageType === 'cloud' && !status.isAuthenticated) {
                 statusText.textContent = 'Sign In Required';
-                statusIcon.src = 'icons/lock.svg';
+                statusIcon.src = 'assets/icons/lock.svg';
                 statusIcon.alt = 'Sign In Required';
             } else {
                 statusText.textContent = 'Local Storage';
-                statusIcon.src = 'icons/user.svg';
+                statusIcon.src = 'assets/icons/user.svg';
                 statusIcon.alt = 'Local Storage';
             }
         }

@@ -74,7 +74,6 @@ console.log('Copying files to public directory...');
 // Copy main files
 const filesToCopy = [
     'index.html',
-    'styles.css',
     'vercel.json'
 ];
 
@@ -84,15 +83,18 @@ filesToCopy.forEach(file => {
     }
 });
 
-// Copy directories
+// Copy directories inside /assets
 const dirsToCopy = [
-    'js',
-    'icons'
+    'assets/css',
+    'assets/js',
+    'assets/icons',
+    'assets/favicon'
 ];
 
 dirsToCopy.forEach(dir => {
     if (fs.existsSync(dir)) {
-        copyDir(dir, path.join(publicDir, dir));
+        const targetDir = path.join(publicDir, dir);
+        copyDir(dir, targetDir);
     }
 });
 
