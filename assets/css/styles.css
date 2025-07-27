@@ -717,7 +717,6 @@ input[type="file"] {
 }
 
 .conflict-btn.primary:hover {
-    background-color: var(--text-primary);
     border-color: var(--text-primary);
 }
 
@@ -733,6 +732,24 @@ input[type="file"] {
     display: flex;
     flex-direction: column;
     gap: 8px;
+}
+
+.sync-action-btn {
+    align-items: center;
+    padding: 12px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+}
+
+.sync-action-btn:hover {
+    background-color: var(--hover-color);
+    border-color: var(--accent-color);
+    transform: translateY(-1px);
 }
 
 @media (max-width: 768px) {
