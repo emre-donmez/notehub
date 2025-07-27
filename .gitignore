@@ -7,6 +7,7 @@
 
 # Build outputs
 env.js
+public/
 
 # IDE
 .vscode/

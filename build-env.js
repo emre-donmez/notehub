@@ -1,5 +1,5 @@
 /**
- * Build script to inject environment variables into JavaScript
+ * Build script to inject environment variables and create public directory
  * This runs during Vercel build process
  */
 const fs = require('fs');
@@ -23,12 +23,81 @@ console.log('Building with environment variables:', {
     storageType: env.DEFAULT_STORAGE_TYPE
 });
 
+// Create public directory if it doesn't exist
+const publicDir = path.join(__dirname, 'public');
+if (!fs.existsSync(publicDir)) {
+    fs.mkdirSync(publicDir);
+}
+
 // Create environment variables object to inject
 const envJS = `// Auto-generated environment configuration
 window.__ENV__ = ${JSON.stringify(env, null, 2)};
 `;
 
-// Write to a file that will be loaded before other scripts
-fs.writeFileSync(path.join(__dirname, 'env.js'), envJS);
+// Function to copy file
+function copyFile(src, dest) {
+    try {
+        fs.copyFileSync(src, dest);
+        console.log(`Copied: ${src} -> ${dest}`);
+    } catch (error) {
+        console.error(`Failed to copy ${src}:`, error.message);
+    }
+}
 
-console.log('Environment variables injected successfully');
+// Function to copy directory recursively
+function copyDir(src, dest) {
+    try {
+        if (!fs.existsSync(dest)) {
+            fs.mkdirSync(dest, { recursive: true });
+        }
+        
+        const entries = fs.readdirSync(src, { withFileTypes: true });
+        
+        for (const entry of entries) {
+            const srcPath = path.join(src, entry.name);
+            const destPath = path.join(dest, entry.name);
+            
+            if (entry.isDirectory()) {
+                copyDir(srcPath, destPath);
+            } else {
+                copyFile(srcPath, destPath);
+            }
+        }
+    } catch (error) {
+        console.error(`Failed to copy directory ${src}:`, error.message);
+    }
+}
+
+// Copy all necessary files to public directory
+console.log('Copying files to public directory...');
+
+// Copy main files
+const filesToCopy = [
+    'index.html',
+    'styles.css',
+    'vercel.json'
+];
+
+filesToCopy.forEach(file => {
+    if (fs.existsSync(file)) {
+        copyFile(file, path.join(publicDir, file));
+    }
+});
+
+// Copy directories
+const dirsToCopy = [
+    'js',
+    'icons'
+];
+
+dirsToCopy.forEach(dir => {
+    if (fs.existsSync(dir)) {
+        copyDir(dir, path.join(publicDir, dir));
+    }
+});
+
+// Write environment variables to public directory
+fs.writeFileSync(path.join(publicDir, 'env.js'), envJS);
+console.log('Environment variables injected to public/env.js');
+
+console.log('Build completed successfully - public directory created');
