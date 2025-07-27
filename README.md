@@ -1,6 +1,6 @@
 # 📝 NoteHub
 
-**[NoteHub](https://notehub.emrecandonmez.com)**
+**[notehub.emrecandonmez.com](https://notehub.emrecandonmez.com)**
 
 **A modern, feature-rich note-taking application with cloud synchronization capabilities**
 
