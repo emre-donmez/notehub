@@ -24,4 +24,12 @@
 - **Manual Controls**: Force sync, upload to cloud, or download from cloud
 - **Offline Support**: Works offline, syncs when connection is restored
 
-**Made with ❤️ by [Emre Dönmez](https://github.com/emre-donmez)**
+### 🔐 End-to-End Encryption
+- **Optional Encryption**: Choose to encrypt notes with a master password
+- **AES-256-GCM Encryption**: Industry-standard encryption with PBKDF2 key derivation
+- **Zero-knowledge**: Your password is never stored - only you can decrypt your notes
+- **Transparent Operation**: Works seamlessly with both local and cloud storage
+
+## 🤝 Contributing
+
+This is an open-source project. Contributions are welcome!

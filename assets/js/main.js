@@ -1,6 +1,6 @@
 /**
- * NoteHub - A modern note-taking application with cloud sync capabilities
- * Supports both local storage and Firebase cloud synchronization
+ * NoteHub - A modern note-taking application with cloud sync capabilities and end-to-end encryption
+ * Supports both local storage and Firebase cloud synchronization with optional encryption
  */
 class NoteHub {
     constructor() {
@@ -14,13 +14,18 @@ class NoteHub {
     }
 
     /**
-     * Initialize the application with cloud sync support
+     * Initialize the application with cloud sync and encryption support
      */
     async initializeApp() {
         try {
             // Initialize Firebase if enabled
             if (appConfig.ENABLE_FIREBASE) {
                 await firebaseService.initialize();
+            }
+
+            // Initialize encryption service FIRST
+            if (typeof encryptionService !== 'undefined') {
+                await encryptionService.initialize();
             }
 
             // Initialize storage service
@@ -31,6 +36,23 @@ class NoteHub {
             
             // Initialize cloud sync UI
             cloudSyncUI.initialize();
+
+            // Initialize encryption UI AFTER encryptionService
+            if (typeof encryptionUI !== 'undefined') {
+                encryptionUI.initialize();
+            }
+
+            // Check if encryption unlock is needed before loading data
+            const needsUnlock = encryptionUI && encryptionUI.needsUnlock();
+            if (needsUnlock) {
+                const unlocked = await encryptionUI.promptUnlockIfNeeded();
+                if (!unlocked) {
+                    // User cancelled unlock, show message and don't load encrypted data
+                    this.showEncryptionLockedMessage();
+                    this.isInitialized = true;
+                    return;
+                }
+            }
 
             // Load existing data
             await this.loadFromStorage();
@@ -43,12 +65,39 @@ class NoteHub {
                 this.createNewTab();
             }
 
+            // Listen for encryption state changes
+            if (typeof encryptionService !== 'undefined') {
+                // Add method to handle encryption lock/unlock
+                const originalLock = encryptionService.lock.bind(encryptionService);
+                encryptionService.lock = () => {
+                    originalLock();
+                    this.handleEncryptionStateChange();
+                };
+            }
+
             this.isInitialized = true;
             console.log('NoteHub initialized successfully');
         } catch (error) {
             console.error('Failed to initialize NoteHub:', error);
             // Show error to user but don't fallback to basic mode
             alert('Failed to initialize NoteHub. Please refresh the page.');
+        }
+    }
+
+    /**
+     * Show message when encryption is locked
+     */
+    showEncryptionLockedMessage() {
+        const editorContainer = document.getElementById('editor-container');
+        if (editorContainer) {
+            editorContainer.innerHTML = `
+                <div class="encryption-locked-message">
+                    <div class="lock-icon">🔒</div>
+                    <h2>Notes are Encrypted</h2>
+                    <p>Your notes are protected with end-to-end encryption.</p>
+                    <p>Click the encryption button in the toolbar to unlock them.</p>
+                </div>
+            `;
         }
     }
 
@@ -115,7 +164,7 @@ class NoteHub {
      * Scroll tabs container
      * @param {string} direction - 'left' or 'right'
      */
-    scrollTabs(direction) {
+    scrollTabs(direction = 'right') {
         const scrollAmount = 200;
         if (direction === 'left') {
             this.tabsList.scrollLeft -= scrollAmount;
@@ -271,7 +320,7 @@ class NoteHub {
                 const newTargetIndex = Array.from(this.tabsList.children).indexOf(this.draggedTab);
                 this.tabs.splice(newTargetIndex, 0, draggedTabData);
 
-                this.switchToTab(tabId);
+                this.switchToTab(parseInt(this.draggedTab.dataset.tabId));
                 this.scrollToActiveTab();
                 
                 // Save updated tab order
@@ -459,7 +508,7 @@ class NoteHub {
     }
 
     /**
-     * Save data to storage (cloud or local)
+     * Save data to storage with encryption support
      */
     async saveToStorage() {
         try {
@@ -478,12 +527,17 @@ class NoteHub {
             console.error('Failed to save data:', error);
             if (error.name === 'QuotaExceededError') {
                 alert('Storage quota exceeded! Please export your notes.');
+            } else if (error.message.includes('encryption')) {
+                // Encryption error - show user-friendly message
+                if (typeof encryptionUI !== 'undefined') {
+                    encryptionUI.showNotification('Failed to encrypt data. Please check your encryption settings.', 'error');
+                }
             }
         }
     }
 
     /**
-     * Save individual note to storage
+     * Save individual note to storage with encryption support
      * @param {Object} note - Note object to save
      */
     async saveNote(note) {
@@ -492,12 +546,22 @@ class NoteHub {
                 await storageService.saveNote(note);
             } else {
                 // Fallback to saving individual note to localStorage
-                localStorage.setItem(`NoteHub_Note_${note.id}`, JSON.stringify(note));
+                // Apply encryption if enabled
+                let processedNote = note;
+                if (typeof encryptionService !== 'undefined' && encryptionService.isEnabled) {
+                    processedNote = await encryptionService.encryptNote(note);
+                }
+                localStorage.setItem(`NoteHub_Note_${note.id}`, JSON.stringify(processedNote));
             }
         } catch (error) {
             console.error('Failed to save note:', error);
             if (error.name === 'QuotaExceededError') {
                 alert('Storage quota exceeded! Please export your notes.');
+            } else if (error.message.includes('encryption')) {
+                // Encryption error - show user-friendly message
+                if (typeof encryptionUI !== 'undefined') {
+                    encryptionUI.showNotification('Failed to encrypt note. Please check your encryption settings.', 'error');
+                }
             }
         }
     }
@@ -559,6 +623,15 @@ class NoteHub {
                 const savedData = localStorage.getItem('NoteHub');
                 if (savedData) {
                     data = JSON.parse(savedData);
+                    
+                    // Apply decryption if needed
+                    if (data && typeof encryptionService !== 'undefined') {
+                        if (data.tabs && Array.isArray(data.tabs)) {
+                            for (let i = 0; i < data.tabs.length; i++) {
+                                data.tabs[i] = await encryptionService.decryptNote(data.tabs[i]);
+                            }
+                        }
+                    }
                 }
             }
 
@@ -584,16 +657,34 @@ class NoteHub {
             }
         } catch (error) {
             console.error('Error loading data:', error);
+            
+            // Check if it's an encryption error
+            if (error.message && error.message.includes('decrypt')) {
+                if (typeof encryptionUI !== 'undefined') {
+                    encryptionUI.showNotification('Failed to decrypt notes. Please check your password and try again.', 'error');
+                    // Show unlock prompt
+                    encryptionUI.openPasswordModal();
+                }
+            }
             // If loading fails, just continue with empty state
         }
     }
 
     /**
-     * Export notes to JSON file
+     * Export notes with encryption awareness
      */
     async exportNotes() {
         try {
-            // Collect all notes data
+            // Check if encryption unlock is needed
+            if (encryptionUI && encryptionUI.needsUnlock()) {
+                const unlocked = await encryptionUI.promptUnlockIfNeeded();
+                if (!unlocked) {
+                    encryptionUI.showNotification('Export cancelled - encryption not unlocked', 'info');
+                    return;
+                }
+            }
+
+            // Collect all notes data (decrypted for export)
             const allNotes = [];
             
             for (const tab of this.tabs) {
@@ -611,7 +702,8 @@ class NoteHub {
             const data = {
                 tabs: allNotes,
                 activeTabId: this.activeTabId,
-                exportDate: new Date().toISOString()
+                exportDate: new Date().toISOString(),
+                encrypted: false // Exported data is always decrypted
             };
 
             const blob = new Blob([JSON.stringify(data, null, 2)], {
@@ -632,12 +724,16 @@ class NoteHub {
             }
         } catch (error) {
             console.error('Export failed:', error);
-            alert('Export failed: ' + error.message);
+            if (error.message && error.message.includes('decrypt')) {
+                alert('Export failed: Unable to decrypt notes. Please check your encryption password.');
+            } else {
+                alert('Export failed: ' + error.message);
+            }
         }
     }
 
     /**
-     * Import notes from JSON file
+     * Import notes with encryption support
      * @param {Event} event - File input change event
      */
     importNotes(event) {
@@ -680,7 +776,7 @@ class NoteHub {
                         this.activeTabId = this.tabs[0].id;
                     }
 
-                    // Save all imported notes
+                    // Save all imported notes (will be encrypted if encryption is enabled)
                     for (const tab of this.tabs) {
                         await this.saveNote(tab);
                     }
@@ -705,14 +801,19 @@ class NoteHub {
                     }, 10);
                     
                     // Show success notification
+                    const message = `${data.tabs.length} notes imported successfully!`;
                     if (typeof cloudSyncUI !== 'undefined' && cloudSyncUI.showNotification) {
-                        cloudSyncUI.showNotification(`${data.tabs.length} notes imported successfully!`, 'success');
+                        cloudSyncUI.showNotification(message, 'success');
                     } else {
-                        alert(`${data.tabs.length} notes imported successfully!`);
+                        alert(message);
                     }
                 } catch (error) {
                     console.error('Import process failed:', error);
-                    alert('Import failed during processing: ' + error.message);
+                    if (error.message && error.message.includes('encrypt')) {
+                        alert('Import failed: Unable to encrypt imported notes. Please check your encryption settings.');
+                    } else {
+                        alert('Import failed during processing: ' + error.message);
+                    }
                 }
             } catch (error) {
                 console.error('Import file parsing failed:', error);
@@ -723,9 +824,66 @@ class NoteHub {
         reader.readAsText(file);
         event.target.value = '';
     }
+
+    // Add method to handle encryption state changes
+    /**
+     * Handle when encryption is locked/unlocked
+     */
+    handleEncryptionStateChange() {
+        if (encryptionUI && encryptionUI.needsUnlock()) {
+            // Encryption is locked, show locked message
+            this.showEncryptionLockedMessage();
+            // Clear tabs from UI but keep data
+            this.tabsList.innerHTML = '';
+            this.editorContainer.innerHTML = '';
+            // Clear memory cache for security
+            if (storageService && storageService.cache) {
+                storageService.cache.clear();
+            }
+        } else {
+            // Encryption is unlocked or disabled, reload data
+            this.loadFromStorage();
+        }
+    }
+
+    /**
+     * Refresh UI after encryption unlock without page reload
+     */
+    async refreshAfterUnlock() {
+        try {
+            // Clear existing UI
+            this.tabsList.innerHTML = '';
+            this.editorContainer.innerHTML = '';
+            
+            // Clear cache to force fresh data load
+            if (storageService && storageService.cache) {
+                storageService.cache.clear();
+            }
+            
+            // Load fresh data
+            await this.loadFromStorage();
+            
+            // Create first tab if none exist
+            if (this.tabs.length === 0) {
+                this.createNewTab();
+            }
+            
+            // Update UI
+            setTimeout(() => {
+                this.updateScrollButtons();
+                this.scrollToActiveTab();
+            }, 10);
+            
+        } catch (error) {
+            console.error('Failed to refresh after unlock:', error);
+            // Fallback to reload
+            window.location.reload();
+        }
+    }
 }
 
 // Start the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    new NoteHub();
+    // Create global reference for encryption UI
+    window.noteHubApp = new NoteHub();
 });

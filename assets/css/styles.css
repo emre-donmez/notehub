@@ -752,95 +752,334 @@ input[type="file"] {
     transform: translateY(-1px);
 }
 
+/* Encryption UI Styles */
+.control-btn.encrypted {
+    background-color: var(--success-color);
+    color: white;
+}
+
+.control-btn.encrypted:hover {
+    background-color: #45a049;
+}
+
+.control-btn.locked {
+    background-color: var(--warning-color);
+    color: white;
+}
+
+.control-btn.locked:hover {
+    background-color: #e68900;
+}
+
+/* Encryption Modal Styles */
+.encryption-section {
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.encryption-section:last-child {
+    border-bottom: none;
+}
+
+.encryption-section h3 {
+    margin: 0 0 16px 0;
+    font-size: 16px;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.encryption-section h4 {
+    margin: 0 0 16px 0;
+    font-size: 14px;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.status-info {
+    margin: 0 0 8px 0;
+    padding: 12px;
+    background-color: var(--bg-secondary);
+    border-radius: 6px;
+    font-size: 14px;
+    color: var(--text-primary);
+    border-left: 4px solid var(--accent-color);
+}
+
+.algorithm-info {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.encryption-warning {
+    margin: 16px 0;
+    padding: 16px;
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 6px;
+    font-size: 13px;
+}
+
+[data-theme="dark"] .encryption-warning {
+    background-color: #3d3a2e;
+    border-color: #5a5239;
+}
+
+.encryption-warning p {
+    margin: 0 0 8px 0;
+    font-weight: 600;
+    color: #856404;
+}
+
+[data-theme="dark"] .encryption-warning p {
+    color: #ffeaa7;
+}
+
+.encryption-warning ul {
+    margin: 0;
+    padding-left: 20px;
+    color: #856404;
+}
+
+[data-theme="dark"] .encryption-warning ul {
+    color: #e6d591;
+}
+
+.encryption-warning li {
+    margin-bottom: 4px;
+}
+
+.encryption-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.encryption-btn {
+    padding: 10px 16px;
+    border: 2px solid;
+    border-radius: 6px;
+    background-color: var(--bg-primary);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+    font-weight: 500;
+    text-align: center;
+    min-width: 120px;
+}
+
+.encryption-btn:hover {
+    transform: translateY(-1px);
+}
+
+.encryption-btn.primary {
+    border-color: var(--success-color);
+    color: var(--success-color);
+}
+
+.encryption-btn.primary:hover {
+    background-color: var(--success-color);
+    color: white;
+}
+
+.encryption-btn.secondary {
+    border-color: var(--text-secondary);
+    color: var(--text-secondary);
+}
+
+.encryption-btn.secondary:hover {
+    background-color: var(--text-secondary);
+    color: var(--bg-primary);
+}
+
+.encryption-btn.danger {
+    border-color: var(--error-color);
+    color: var(--error-color);
+}
+
+.encryption-btn.danger:hover {
+    background-color: var(--error-color);
+    color: white;
+}
+
+.encryption-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Encryption Forms */
+.encryption-form {
+    background-color: var(--bg-secondary);
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 16px;
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.form-group input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 14px;
+    transition: border-color 0.2s;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: var(--accent-color);
+}
+
+.form-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
+
+.form-message {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    display: none;
+}
+
+.error-message {
+    background-color: #fee;
+    border: 1px solid var(--error-color);
+    color: var(--error-color);
+}
+
+[data-theme="dark"] .error-message {
+    background-color: #4a2c2c;
+    border-color: #8b4545;
+    color: #ff8888;
+}
+
+.success-message {
+    background-color: #efe;
+    border: 1px solid var(--success-color);
+    color: var(--success-color);
+}
+
+[data-theme="dark"] .success-message {
+    background-color: #2c4a2c;
+    border-color: #458545;
+    color: #88ff88;
+}
+
+.warning-text {
+    color: var(--warning-color);
+    font-weight: 500;
+    margin-bottom: 16px;
+}
+
+/* Password Modal Specific Styles */
+.password-modal .modal-content {
+    max-width: 400px;
+}
+
+.unlock-section {
+    padding: 24px;
+}
+
+.unlock-section p {
+    margin: 0 0 20px 0;
+    color: var(--text-secondary);
+    font-size: 14px;
+    text-align: center;
+}
+
+/* Encryption Locked Message */
+.encryption-locked-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    text-align: center;
+    padding: 40px;
+    color: var(--text-secondary);
+}
+
+.lock-icon {
+    font-size: 48px;
+    margin-bottom: 20px;
+    opacity: 0.7;
+}
+
+.encryption-locked-message h2 {
+    margin: 0 0 16px 0;
+    color: var(--text-primary);
+    font-size: 24px;
+    font-weight: 300;
+}
+
+.encryption-locked-message p {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+/* Responsive encryption styles */
 @media (max-width: 768px) {
-    .control-bar {
-        padding: 6px 8px;
-        min-height: 40px;
+    .encryption-section {
+        padding: 16px;
     }
 
-    .control-btn {
-        padding: 4px 8px;
-        font-size: 12px;
+    .encryption-form {
+        padding: 16px;
     }
 
-    .tab {
-        min-width: 100px;
-        padding: 6px 8px;
+    .encryption-actions {
+        flex-direction: column;
+    }
+    
+    .form-actions {
+        flex-direction: column;
     }
 
-    .editor {
-        padding: 12px;
-        font-size: 13px;
+    .encryption-btn {
+        min-width: auto;
+        width: 100%;
     }
 
-    .tabs-list {
-        padding-right: 45px; /* Smaller space for mobile */
-    }
-
-    .new-tab-btn {
-        width: 45px;
-        padding: 6px 8px;
-        font-size: 14px;
-    }
-    .bar-center {
-        font-size: 13px;
-    }
-    .repo-link-text {
-        max-width: 80px;
-        font-size: 12px;
-    }
-    .icon {
-        width: 16px;
-        height: 16px;
-    }
-    .github-svg {
-        width: 16px;
-        height: 16px;
-    }
-
-    .modal-content {
-        width: 95%;
-        max-height: 90vh;
-        border-radius: 8px;
-    }
-
-    .modal-header {
-        padding: 16px 20px;
-    }
-
-    .sync-section {
+    .encryption-locked-message {
         padding: 20px;
     }
 
-    .sync-buttons {
-        gap: 8px;
+    .lock-icon {
+        font-size: 36px;
+        margin-bottom: 16px;
     }
 
-    .sync-action-btn {
-        padding: 10px 14px;
-        font-size: 13px;
+    .encryption-locked-message h2 {
+        font-size: 20px;
     }
 
-    .sync-status {
-        font-size: 11px;
-        padding: 4px 8px;
+    .encryption-locked-message p {
+        font-size: 14px;
     }
 
-    .sync-status-text {
-        display: none; /* Hide text on mobile */
-    }
-
-    .conflict-info {
-        flex-direction: column;
-        gap: 12px;
-    }
-    
-    .conflict-option {
-        padding: 12px;
-    }
-    
-    .conflict-buttons {
-        gap: 10px;
+    .password-modal .modal-content {
+        max-width: 90%;
     }
 }
 
@@ -854,6 +1093,6 @@ button, input[type="button"], input[type="submit"], input[type="file"] {
     cursor: pointer !important;
 }
 
-input[type="text"], textarea {
+input[type="text"], input[type="password"], textarea {
     cursor: text !important;
 }

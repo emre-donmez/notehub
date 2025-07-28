@@ -51,6 +51,10 @@
                     </span>
                 </div>
 
+                <!-- Encryption Button -->
+                <button id="encryption-btn" class="control-btn icon-btn" title="Encryption Settings" style="display: none;">
+                    <img src="assets/icons/unlock.svg" alt="Encryption" class="icon" id="encryption-icon">
+                </button>
                 <button id="sync-btn" class="control-btn icon-btn" title="Cloud Sync" style="display: none;">
                     <img src="assets/icons/cloud.svg" alt="Cloud Sync" class="icon" id="sync-icon">
                 </button>
@@ -64,6 +68,125 @@
                     <img src="assets/icons/upload.svg" alt="Upload Notes" class="icon">
                 </button>
                 <input type="file" id="import-file" accept=".json" style="display: none;">
+            </div>
+        </div>
+    </div>
+
+    <!-- Encryption Settings Modal -->
+    <div id="encryption-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🔐 Encryption Settings</h2>
+                <span class="modal-close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <!-- Encryption Status -->
+                <div class="encryption-section">
+                    <h3>Current Status</h3>
+                    <p id="encryption-status-info" class="status-info">Loading...</p>
+                    <p id="encryption-algorithm" class="algorithm-info" style="display: none;"></p>
+                </div>
+
+                <!-- Encryption Disabled State -->
+                <div id="encryption-disabled" class="encryption-state">
+                    <div class="encryption-section">
+                        <h3>Enable End-to-End Encryption</h3>
+                        <p>Protect your notes with a master password. Your notes will be encrypted before being saved to storage or synced to the cloud.</p>
+                        <div class="encryption-warning">
+                            <p><strong>⚠️ Important:</strong></p>
+                            <ul>
+                                <li>If you forget your password, your notes cannot be recovered</li>
+                                <li>Encryption uses AES-256-GCM with PBKDF2 key derivation</li>
+                                <li>Your password is never stored - only you know it</li>
+                            </ul>
+                        </div>
+                        <button id="enable-encryption-btn" class="encryption-btn primary">Enable Encryption</button>
+                    </div>
+
+                    <!-- Enable Encryption Form -->
+                    <form id="enable-encryption-form" class="encryption-form" style="display: none;">
+                        <h4>Set Master Password</h4>
+                        <div class="form-group">
+                            <label for="enable-password">Master Password:</label>
+                            <input type="password" id="enable-password" required minlength="8" 
+                                   placeholder="Enter a strong password (min. 8 characters)">
+                        </div>
+                        <div class="form-group">
+                            <label for="enable-password-confirm">Confirm Password:</label>
+                            <input type="password" id="enable-password-confirm" required minlength="8"
+                                   placeholder="Confirm your password">
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" id="enable-encryption-btn" class="encryption-btn primary">Enable Encryption</button>
+                            <button type="button" class="encryption-btn secondary" onclick="encryptionUI.hideAllForms()">Cancel</button>
+                        </div>
+                        <div id="enable-error" class="form-message error-message" style="display: none;"></div>
+                        <div id="enable-success" class="form-message success-message" style="display: none;"></div>
+                    </form>
+                </div>
+
+                <!-- Encryption Enabled but Locked State -->
+                <div id="encryption-enabled" class="encryption-state" style="display: none;">
+                    <div class="encryption-section">
+                        <h3>Encryption is Enabled</h3>
+                        <p>Your notes are protected with end-to-end encryption, but you need to enter your password to access them.</p>
+                        <div class="encryption-actions">
+                            <button id="disable-encryption-locked-btn" class="encryption-btn danger">Disable Encryption</button>
+                        </div>
+                    </div>
+
+                    <!-- Disable Encryption Form -->
+                    <form id="disable-encryption-form" class="encryption-form" style="display: none;">
+                        <h4>Disable Encryption</h4>
+                        <p class="warning-text">⚠️ This will remove encryption from all your notes. They will be stored as plain text.</p>
+                        <div class="form-group">
+                            <label for="disable-password">Enter your password to confirm:</label>
+                            <input type="password" id="disable-password" required placeholder="Your master password">
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" id="disable-encryption-submit-btn" class="encryption-btn danger">Disable Encryption</button>
+                            <button type="button" class="encryption-btn secondary" onclick="encryptionUI.hideAllForms()">Cancel</button>
+                        </div>
+                        <div id="disable-error" class="form-message error-message" style="display: none;"></div>
+                        <div id="disable-success" class="form-message success-message" style="display: none;"></div>
+                    </form>
+                </div>
+
+                <!-- Encryption Enabled and Unlocked State -->
+                <div id="encryption-unlocked" class="encryption-state" style="display: none;">
+                    <div class="encryption-section">
+                        <h3>Encryption is Active</h3>
+                        <p>Your notes are protected with end-to-end encryption and currently unlocked for editing.</p>
+                        <div class="encryption-actions">
+                            <button id="disable-encryption-unlocked-btn" class="encryption-btn danger">Disable Encryption</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Password Unlock Modal -->
+    <div id="password-modal" class="modal password-modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🔓 Unlock Encryption</h2>
+                <span class="modal-close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="unlock-section">
+                    <p>Your notes are encrypted. Please enter your master password to access them.</p>
+                    <form id="unlock-password-form" class="encryption-form">
+                        <div class="form-group">
+                            <label for="unlock-password">Master Password:</label>
+                            <input type="password" id="unlock-password" required placeholder="Enter your master password" autofocus>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" id="unlock-encryption-btn" class="encryption-btn primary">Unlock</button>
+                        </div>
+                        <div id="unlock-error" class="form-message error-message" style="display: none;"></div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
@@ -175,7 +298,9 @@
     <!-- Application Scripts -->
     <script src="assets/js/firebase-config.js"></script>
     <script src="assets/js/firebase-service.js"></script>
+    <script src="assets/js/encryption-service.js"></script>
     <script src="assets/js/storage-service.js"></script>
+    <script src="assets/js/encryption-ui.js"></script>
     <script src="assets/js/cloud-sync-ui.js"></script>
     <script src="assets/js/main.js"></script>
 </body>

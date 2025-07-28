@@ -1,7 +1,7 @@
 /**
  * Storage Service
  * Unified storage interface that handles both localStorage and Firebase storage
- * Now supports document-based storage for better scalability
+ * Now supports document-based storage for better scalability and end-to-end encryption
  */
 class StorageService {
     constructor() {
@@ -18,6 +18,11 @@ class StorageService {
      * @returns {Promise<void>}
      */
     async initialize(defaultType = 'local') {
+        // Initialize encryption service
+        if (typeof encryptionService !== 'undefined') {
+            await encryptionService.initialize();
+        }
+
         // Load user preference from localStorage
         const savedType = localStorage.getItem('NoteHub_StorageType') || defaultType;
         this.storageType = savedType;
@@ -432,18 +437,24 @@ class StorageService {
     }
 
     /**
-     * Save data to current storage
+     * Save data to current storage with optional encryption
      * @param {Object} data - Data to save
      * @returns {Promise<boolean>} True if saved successfully
      */
     async saveData(data) {
         try {
+            // Encrypt data if encryption is enabled
+            let processedData = data;
+            if (typeof encryptionService !== 'undefined' && encryptionService.isEnabled) {
+                processedData = await this.encryptDataForStorage(data);
+            }
+
             // Always save to localStorage as backup
-            this.saveToLocalStorage(data);
+            this.saveToLocalStorage(processedData);
 
             // Also save to cloud if sync is enabled
             if (this.syncEnabled && this.storageType === 'cloud') {
-                await firebaseService.saveUserNotes(data);
+                await firebaseService.saveUserNotes(processedData);
                 this.lastSyncTime = new Date().toISOString();
                 localStorage.setItem('NoteHub_LastSyncTime', this.lastSyncTime);
             }
@@ -457,23 +468,29 @@ class StorageService {
     }
 
     /**
-     * Save individual note to current storage
+     * Save individual note to current storage with optional encryption
      * @param {Object} note - Note object to save
-     * @returns {Promise<boolean} True if saved successfully
+     * @returns {Promise<boolean>} True if saved successfully
      */
     async saveNote(note) {
         try {
+            // Encrypt note if encryption is enabled
+            let processedNote = note;
+            if (typeof encryptionService !== 'undefined' && encryptionService.isEnabled) {
+                processedNote = await encryptionService.encryptNote(note);
+            }
+
             // Update local storage with single note
-            this.saveNoteToLocalStorage(note);
+            this.saveNoteToLocalStorage(processedNote);
 
             // Also save to cloud if sync is enabled
             if (this.syncEnabled && this.storageType === 'cloud') {
-                await firebaseService.saveNote(note);
+                await firebaseService.saveNote(processedNote);
                 this.lastSyncTime = new Date().toISOString();
                 localStorage.setItem('NoteHub_LastSyncTime', this.lastSyncTime);
             }
 
-            // Update cache
+            // Update cache with decrypted note for UI
             this.cache.set(note.id, note);
 
             return true;
@@ -484,7 +501,7 @@ class StorageService {
     }
 
     /**
-     * Load note from current storage
+     * Load note from current storage with automatic decryption
      * @param {number} noteId - Note ID to load
      * @returns {Promise<Object|null>} Note data or null
      */
@@ -507,6 +524,11 @@ class StorageService {
                 note = this.loadNoteFromLocalStorage(noteId);
             }
 
+            // Decrypt note if encryption is enabled
+            if (note && typeof encryptionService !== 'undefined') {
+                note = await encryptionService.decryptNote(note);
+            }
+
             // Update cache
             if (note) {
                 this.cache.set(noteId, note);
@@ -515,85 +537,106 @@ class StorageService {
             return note;
         } catch (error) {
             console.error('Failed to load note:', error);
-            return this.loadNoteFromLocalStorage(noteId);
-        }
-    }
-
-    /**
-     * Delete note from current storage
-     * @param {number} noteId - Note ID to delete
-     * @returns {Promise<boolean>} True if deleted successfully
-     */
-    async deleteNote(noteId) {
-        try {
-            // Delete from local storage
-            this.deleteNoteFromLocalStorage(noteId);
-
-            // Also delete from cloud if sync is enabled
-            if (this.syncEnabled && this.storageType === 'cloud') {
-                await firebaseService.deleteNote(noteId);
-                this.lastSyncTime = new Date().toISOString();
-                localStorage.setItem('NoteHub_LastSyncTime', this.lastSyncTime);
+            const fallbackNote = this.loadNoteFromLocalStorage(noteId);
+            if (fallbackNote && typeof encryptionService !== 'undefined') {
+                return await encryptionService.decryptNote(fallbackNote);
             }
-
-            // Remove from cache
-            this.cache.delete(noteId);
-
-            return true;
-        } catch (error) {
-            console.error('Failed to delete note:', error);
-            return this.storageType === 'local';
+            return fallbackNote;
         }
     }
 
     /**
-     * Load data from current storage
+     * Load data from current storage with automatic decryption
      * @returns {Promise<Object|null>} Loaded data or null
      */
     async loadData() {
         try {
+            let data = null;
+
             if (this.syncEnabled && this.storageType === 'cloud') {
                 // Try to load from cloud first
                 const cloudData = await firebaseService.loadUserNotes();
                 if (cloudData) {
-                    // Also update localStorage with cloud data
-                    this.saveToLocalStorage(cloudData);
-                    return cloudData;
+                    // Decrypt cloud data if needed
+                    if (typeof encryptionService !== 'undefined') {
+                        data = await this.decryptDataFromStorage(cloudData);
+                    } else {
+                        data = cloudData;
+                    }
+                    // DO NOT save decrypted data to localStorage for security!
+                    // Only cache in memory for UI usage
+                    return data;
                 }
             }
 
-            // Fallback to localStorage
-            return this.loadFromLocalStorage();
+            // Load from localStorage (potentially encrypted)
+            const localData = this.loadFromLocalStorage();
+            if (localData && typeof encryptionService !== 'undefined') {
+                // Decrypt for UI usage but don't store decrypted data back to localStorage
+                data = await this.decryptDataFromStorage(localData);
+            } else {
+                data = localData;
+            }
+
+            return data;
         } catch (error) {
             console.error('Failed to load data from cloud, using localStorage:', error);
-            return this.loadFromLocalStorage();
+            const localData = this.loadFromLocalStorage();
+            if (localData && typeof encryptionService !== 'undefined') {
+                try {
+                    return await this.decryptDataFromStorage(localData);
+                } catch (decryptError) {
+                    console.error('Failed to decrypt local data:', decryptError);
+                    // Return null instead of encrypted data - force unlock
+                    return null;
+                }
+            }
+            return localData;
         }
     }
 
     /**
-     * Sync data between local and cloud storage
-     * Uses smart sync logic for better user experience
-     * @returns {Promise<Object>} Sync result object
+     * Encrypt data structure for storage
+     * @param {Object} data - Data to encrypt
+     * @returns {Promise<Object>} Encrypted data structure
      */
-    async syncData() {
-        if (!this.syncEnabled || !firebaseService.isAuthenticated()) {
-            throw new Error('Sync not available');
+    async encryptDataForStorage(data) {
+        if (!data || !data.tabs) return data;
+
+        const encryptedData = {
+            ...data,
+            tabs: []
+        };
+
+        // Encrypt each tab
+        for (const tab of data.tabs) {
+            const encryptedTab = await encryptionService.encryptNote(tab);
+            encryptedData.tabs.push(encryptedTab);
         }
 
-        try {
-            // Use smart sync for manual sync operations too
-            const result = await this.performSmartSync();
-            
-            // If reload is needed (for conflict resolution), do it
-            if (result.shouldReload) {
-                setTimeout(() => window.location.reload(), 1000);
-            }
-            
-            return result;
-        } catch (error) {
-            console.error('Sync failed:', error);
-            throw error;
+        return encryptedData;
+    }
+
+    /**
+     * Decrypt data structure from storage
+     * @param {Object} data - Data to decrypt
+     * @returns {Promise<Object>} Decrypted data structure
+     */
+    async decryptDataFromStorage(data) {
+        if (!data || !data.tabs) return data;
+
+        const decryptedData = {
+            ...data,
+            tabs: []
+        };
+
+        // Decrypt each tab
+        for (const tab of data.tabs) {
+            const decryptedTab = await encryptionService.decryptNote(tab);
+            decryptedData.tabs.push(decryptedTab);
         }
+
+        return decryptedData;
     }
 
     /**
@@ -741,6 +784,59 @@ class StorageService {
             lastSyncTime: this.lastSyncTime,
             user: firebaseService.getCurrentUser()
         };
+    }
+
+    /**
+     * Delete note from current storage
+     * @param {number} noteId - Note ID to delete
+     * @returns {Promise<boolean>} True if deleted successfully
+     */
+    async deleteNote(noteId) {
+        try {
+            // Delete from local storage
+            this.deleteNoteFromLocalStorage(noteId);
+
+            // Also delete from cloud if sync is enabled
+            if (this.syncEnabled && this.storageType === 'cloud') {
+                await firebaseService.deleteNote(noteId);
+                this.lastSyncTime = new Date().toISOString();
+                localStorage.setItem('NoteHub_LastSyncTime', this.lastSyncTime);
+            }
+
+            // Remove from cache
+            this.cache.delete(noteId);
+
+            return true;
+        } catch (error) {
+            console.error('Failed to delete note:', error);
+            return this.storageType === 'local';
+        }
+    }
+
+    /**
+     * Sync data between local and cloud storage
+     * Uses smart sync logic for better user experience
+     * @returns {Promise<Object>} Sync result object
+     */
+    async syncData() {
+        if (!this.syncEnabled || !firebaseService.isAuthenticated()) {
+            throw new Error('Sync not available');
+        }
+
+        try {
+            // Use smart sync for manual sync operations too
+            const result = await this.performSmartSync();
+            
+            // If reload is needed (for conflict resolution), do it
+            if (result.shouldReload) {
+                setTimeout(() => window.location.reload(), 1000);
+            }
+            
+            return result;
+        } catch (error) {
+            console.error('Sync failed:', error);
+            throw error;
+        }
     }
 }
 
