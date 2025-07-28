@@ -297,11 +297,26 @@
 
     <!-- Application Scripts -->
     <script src="assets/js/firebase-config.js"></script>
-    <script src="assets/js/firebase-service.js"></script>
+    <script src="assets/js/services/firebase-service.js"></script>
     <script src="assets/js/encryption-service.js"></script>
-    <script src="assets/js/storage-service.js"></script>
-    <script src="assets/js/encryption-ui.js"></script>
-    <script src="assets/js/cloud-sync-ui.js"></script>
+    <script src="assets/js/services/storage-service.js"></script>
+    <script src="assets/js/ui/cloud-sync-ui.js"></script>
+    <script src="assets/js/ui/encryption-ui.js"></script>
+    
+    <!-- Core Utilities (Order is important) -->
+    <script src="assets/js/utils/dom-utils.js"></script>
+    <script src="assets/js/utils/storage-utils.js"></script>
+    <script src="assets/js/utils/validation-manager.js"></script>
+    <script src="assets/js/utils/performance-monitor.js"></script>
+    <script src="assets/js/utils/event-manager.js"></script>
+    <script src="assets/js/utils/notification-manager.js"></script>
+    
+    <!-- Core Components -->
+    <script src="assets/js/core/theme-manager.js"></script>
+    <script src="assets/js/core/tab-manager.js"></script>
+    <script src="assets/js/core/import-export-manager.js"></script>
+    
+    <!-- Main Application -->
     <script src="assets/js/main.js"></script>
 </body>
 </html>

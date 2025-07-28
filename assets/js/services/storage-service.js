@@ -225,13 +225,14 @@ class StorageService {
     }
 
     /**
-     * Show smart sync notification
+     * Show smart sync notification using NotificationManager
      * @param {string} message - Notification message
      * @param {string} type - Notification type
      */
     showSmartSyncNotification(message, type) {
-        // Use cloud sync UI notification if available
-        if (typeof cloudSyncUI !== 'undefined' && cloudSyncUI.showNotification) {
+        if (typeof notificationManager !== 'undefined') {
+            notificationManager.show(message, type);
+        } else if (typeof cloudSyncUI !== 'undefined' && cloudSyncUI.showNotification) {
             cloudSyncUI.showNotification(message, type);
         } else {
             // Fallback to console log

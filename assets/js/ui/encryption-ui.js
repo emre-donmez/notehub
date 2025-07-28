@@ -192,18 +192,17 @@ class EncryptionUI {
      * Update encryption modal content based on current state
      */
     updateEncryptionModalContent() {
-        // Güvenli kontrol: encryptionService var mı?
         if (!encryptionService || typeof encryptionService.getStatus !== 'function') {
-            console.warn('EncryptionService not yet available for modal content update');
+            performanceMonitor.log('warn', 'EncryptionService not yet available for modal content update');
             return;
         }
 
         const status = encryptionService.getStatus();
         
         // Show/hide sections based on encryption status
-        const disabledSection = document.getElementById('encryption-disabled');
-        const enabledSection = document.getElementById('encryption-enabled');
-        const unlockedSection = document.getElementById('encryption-unlocked');
+        const disabledSection = DOMUtils.getElementById('encryption-disabled');
+        const enabledSection = DOMUtils.getElementById('encryption-enabled');
+        const unlockedSection = DOMUtils.getElementById('encryption-unlocked');
 
         if (disabledSection && enabledSection && unlockedSection) {
             if (!status.enabled) {
@@ -222,7 +221,7 @@ class EncryptionUI {
         }
 
         // Update status information with improved messages
-        const statusElement = document.getElementById('encryption-status-info');
+        const statusElement = DOMUtils.getElementById('encryption-status-info');
         if (statusElement) {
             let statusText = '';
             if (!status.available) {
@@ -238,9 +237,9 @@ class EncryptionUI {
         }
 
         // Update algorithm info with better visibility
-        const algorithmElement = document.getElementById('encryption-algorithm');
+        const algorithmElement = DOMUtils.getElementById('encryption-algorithm');
         if (algorithmElement && status.enabled) {
-            algorithmElement.textContent = `🔐 Algorithm: ${status.algorithm}, Key Length: ${status.keyLength} bits`;            
+            algorithmElement.textContent = `🔐 Algorithm: ${status.algorithm}, Key Length: ${status.keyLength} bits`;
             algorithmElement.style.display = 'block';
         } else if (algorithmElement) {
             algorithmElement.style.display = 'none';
@@ -251,15 +250,14 @@ class EncryptionUI {
      * Update encryption status in main UI
      */
     updateEncryptionStatus() {
-        // Güvenli kontrol: encryptionService var mı?
         if (!encryptionService || typeof encryptionService.getStatus !== 'function') {
-            console.warn('EncryptionService not yet available');
+            performanceMonitor.log('warn', 'EncryptionService not yet available');
             return;
         }
 
         const status = encryptionService.getStatus();
-        const encryptionBtn = document.getElementById('encryption-btn');
-        const encryptionIcon = document.getElementById('encryption-icon');
+        const encryptionBtn = DOMUtils.getElementById('encryption-btn');
+        const encryptionIcon = DOMUtils.getElementById('encryption-icon');
         
         if (!encryptionBtn || !encryptionIcon) return;
 
@@ -539,8 +537,10 @@ class EncryptionUI {
      * This prevents data loss when disabling encryption
      */
     async decryptAndSaveAllNotes() {
+        performanceMonitor.startTimer('decrypt_all_notes');
+
         try {
-            console.log('🔓 Decrypting and saving all notes as plain text...');
+            performanceMonitor.log('info', '🔓 Decrypting and saving all notes as plain text');
             
             // Get all localStorage keys that are notes
             const noteKeys = [];
@@ -556,41 +556,40 @@ class EncryptionUI {
             // Process each note
             for (const key of noteKeys) {
                 try {
-                    const noteData = localStorage.getItem(key);
-                    if (noteData) {
-                        const parsed = JSON.parse(noteData);
+                    const noteData = StorageUtils.getItem(key);
+                    if (noteData && noteData._encrypted) {
+                        performanceMonitor.log('debug', `🔓 Decrypting note: ${key}`);
                         
-                        // If this note is encrypted, decrypt it and save as plain text
-                        if (parsed._encrypted) {
-                            console.log(`🔓 Decrypting note: ${key}`);
-                            
-                            const decryptedNote = await encryptionService.decryptNote(parsed);
-                            
-                            // Remove encryption metadata and save as plain text
-                            const plainTextNote = {
-                                id: decryptedNote.id,
-                                title: decryptedNote.title,
-                                content: decryptedNote.content,
-                                lastModified: new Date().toISOString()
-                            };
-                            
-                            // Save the plain text version
-                            localStorage.setItem(key, JSON.stringify(plainTextNote));
-                            decryptedCount++;
-                            
-                            console.log(`✅ Successfully decrypted and saved: ${key}`);
-                        }
+                        const decryptedNote = await encryptionService.decryptNote(noteData);
+                        
+                        // Remove encryption metadata and save as plain text
+                        const plainTextNote = ValidationManager.sanitizeNote({
+                            id: decryptedNote.id,
+                            title: decryptedNote.title,
+                            content: decryptedNote.content,
+                            lastModified: new Date().toISOString()
+                        });
+                        
+                        // Save the plain text version
+                        StorageUtils.setItem(key, plainTextNote);
+                        decryptedCount++;
+                        
+                        performanceMonitor.log('debug', `✅ Successfully decrypted and saved: ${key}`);
                     }
                 } catch (noteError) {
-                    console.error(`❌ Failed to decrypt note ${key}:`, noteError);
-                    // Continue with other notes even if one fails
+                    performanceMonitor.recordError(noteError, `decrypt_note_${key}`);
                 }
             }
             
-            console.log(`🎉 Successfully decrypted ${decryptedCount} notes`);
+            const duration = performanceMonitor.endTimer('decrypt_all_notes', {
+                notesProcessed: noteKeys.length,
+                notesDecrypted: decryptedCount
+            });
+            
+            performanceMonitor.log('info', `🎉 Successfully decrypted ${decryptedCount} notes in ${duration.toFixed(2)}ms`);
             
         } catch (error) {
-            console.error('Failed to decrypt and save notes:', error);
+            performanceMonitor.recordError(error, 'decrypt_all_notes');
             throw new Error('Failed to decrypt notes before disabling encryption. Your data is still encrypted and safe.');
         }
     }
@@ -731,20 +730,24 @@ class EncryptionUI {
     }
 
     /**
-     * Show notification message
+     * Show notification message using NotificationManager
      * @param {string} message - Notification message
      * @param {string} type - Notification type
      */
     showNotification(message, type) {
-        // Use cloud sync UI notification if available
-        if (typeof cloudSyncUI !== 'undefined' && cloudSyncUI.showNotification) {
+        if (typeof notificationManager !== 'undefined') {
+            notificationManager.show(message, type);
+        } else if (typeof cloudSyncUI !== 'undefined' && cloudSyncUI.showNotification) {
             cloudSyncUI.showNotification(message, type);
         } else {
-            // Fallback to alert
-            alert(message);
+            // Fallback to console and alert
+            console.log(`[${type}] ${message}`);
+            if (type === 'error') {
+                alert(message);
+            }
         }
     }
 }
 
 // Export singleton instance
-const encryptionUI = new EncryptionUI();
+const encryptionUI = new EncryptionUI();const encryptionUI = new EncryptionUI();

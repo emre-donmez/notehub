@@ -17,10 +17,13 @@ class EncryptionService {
 
     /**
      * Initialize encryption service and check if encryption is enabled
+     * @returns {Promise<void>}
      */
     async initialize() {
-        const settings = StorageUtils.getItem('NoteHub_EncryptionSettings');
-        if (settings) {
+        // Check if user has encryption enabled
+        const encryptionSettings = localStorage.getItem('NoteHub_EncryptionSettings');
+        if (encryptionSettings) {
+            const settings = JSON.parse(encryptionSettings);
             this.isEnabled = settings.enabled || false;
         }
     }
@@ -31,11 +34,11 @@ class EncryptionService {
      * @returns {Promise<boolean>} True if encryption enabled successfully
      */
     async enableEncryption(password) {
-        if (!password || password.length < 8) {
-            throw new Error('Password must be at least 8 characters long');
-        }
-
         try {
+            if (!password || password.length < 8) {
+                throw new Error('Password must be at least 8 characters long');
+            }
+
             // Generate a salt for key derivation
             const salt = crypto.getRandomValues(new Uint8Array(this.saltLength));
             
@@ -50,10 +53,10 @@ class EncryptionService {
                 iterations: this.keyDerivationIterations
             };
             
-            StorageUtils.setItem('NoteHub_EncryptionSettings', settings);
+            localStorage.setItem('NoteHub_EncryptionSettings', JSON.stringify(settings));
             this.isEnabled = true;
             
-            // Encrypt existing plain text notes
+            // FIXED: Encrypt existing plain text notes instead of deleting them
             await this.encryptExistingPlainTextNotes();
             
             return true;
@@ -64,12 +67,12 @@ class EncryptionService {
     }
 
     /**
-     * Encrypt existing plain text notes when enabling encryption
+     * NEW: Encrypt existing plain text notes when enabling encryption
      * This preserves user data instead of deleting it
      */
     async encryptExistingPlainTextNotes() {
         try {
-            console.log('?? Encrypting existing plain text notes...');
+            console.log('🔐 Encrypting existing plain text notes...');
             
             const noteKeys = [];
             
@@ -77,10 +80,19 @@ class EncryptionService {
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
                 
+                // Check individual notes for plain text (not encrypted)
                 if (key && key.startsWith('NoteHub_Note_')) {
-                    const noteData = StorageUtils.getItem(key);
-                    if (noteData && !noteData._encrypted) {
-                        noteKeys.push(key);
+                    try {
+                        const noteData = localStorage.getItem(key);
+                        if (noteData) {
+                            const parsed = JSON.parse(noteData);
+                            // If note is not marked as encrypted, it's plain text
+                            if (!parsed._encrypted) {
+                                noteKeys.push(key);
+                            }
+                        }
+                    } catch (error) {
+                        console.warn(`Could not parse note ${key}, skipping:`, error);
                     }
                 }
             }
@@ -90,31 +102,34 @@ class EncryptionService {
             // Encrypt each plain text note
             for (const key of noteKeys) {
                 try {
-                    const noteData = StorageUtils.getItem(key);
+                    const noteData = localStorage.getItem(key);
                     if (noteData) {
-                        console.log(`?? Encrypting note: ${key}`);
+                        const parsed = JSON.parse(noteData);
+                        
+                        console.log(`🔐 Encrypting note: ${key}`);
                         
                         // Encrypt the note
-                        const encryptedNote = await this.encryptNote(noteData);
+                        const encryptedNote = await this.encryptNote(parsed);
                         
                         // Save the encrypted version
-                        StorageUtils.setItem(key, encryptedNote);
+                        localStorage.setItem(key, JSON.stringify(encryptedNote));
                         encryptedCount++;
                         
-                        console.log(`? Successfully encrypted: ${key}`);
+                        console.log(`✅ Successfully encrypted: ${key}`);
                     }
                 } catch (noteError) {
-                    console.error(`? Failed to encrypt note ${key}:`, noteError);
+                    console.error(`❌ Failed to encrypt note ${key}:`, noteError);
+                    // Continue with other notes even if one fails
                 }
             }
             
-            // Clear storage cache if available
+            // Force clear any potential cached plain text
             if (typeof storageService !== 'undefined' && storageService.cache) {
                 storageService.cache.clear();
-                console.log('?? Cleared storage cache');
+                console.log('🧹 Cleared storage cache');
             }
             
-            console.log(`?? Successfully encrypted ${encryptedCount} notes.`);
+            console.log(`🎉 Successfully encrypted ${encryptedCount} notes.`);
             
         } catch (error) {
             console.error('Failed to encrypt existing notes:', error);
@@ -124,19 +139,18 @@ class EncryptionService {
 
     /**
      * Disable encryption (will require password verification)
-     * @param {string} password - Master password for verification
-     * @returns {Promise<boolean>} True if encryption disabled successfully
+     * FIXED: Now properly decrypts notes before removing encryption
      */
     async disableEncryption(password) {
-        // Verify password before disabling
-        const isValid = await this.verifyPassword(password);
-        if (!isValid) {
-            throw new Error('Invalid password');
-        }
-
         try {
+            // Verify password before disabling
+            const isValid = await this.verifyPassword(password);
+            if (!isValid) {
+                throw new Error('Invalid password');
+            }
+
             // Remove encryption settings
-            StorageUtils.removeItem('NoteHub_EncryptionSettings');
+            localStorage.removeItem('NoteHub_EncryptionSettings');
             this.isEnabled = false;
             this.encryptionKey = null;
             
@@ -153,16 +167,16 @@ class EncryptionService {
      * @returns {Promise<boolean>} True if unlocked successfully
      */
     async unlockEncryption(password) {
-        if (!this.isEnabled) {
-            throw new Error('Encryption is not enabled');
-        }
-
-        const settings = StorageUtils.getItem('NoteHub_EncryptionSettings');
-        if (!settings || !settings.salt) {
-            throw new Error('Encryption settings not found');
-        }
-
         try {
+            if (!this.isEnabled) {
+                throw new Error('Encryption is not enabled');
+            }
+
+            const settings = JSON.parse(localStorage.getItem('NoteHub_EncryptionSettings'));
+            if (!settings || !settings.salt) {
+                throw new Error('Encryption settings not found');
+            }
+
             // Recreate salt from stored array
             const salt = new Uint8Array(settings.salt);
             
@@ -191,16 +205,16 @@ class EncryptionService {
      * @returns {Promise<boolean>} True if password is correct
      */
     async verifyPassword(password) {
-        if (!this.isEnabled) {
-            return false;
-        }
-
-        const settings = StorageUtils.getItem('NoteHub_EncryptionSettings');
-        if (!settings || !settings.salt) {
-            return false;
-        }
-
         try {
+            if (!this.isEnabled) {
+                return false;
+            }
+
+            const settings = JSON.parse(localStorage.getItem('NoteHub_EncryptionSettings'));
+            if (!settings || !settings.salt) {
+                return false;
+            }
+
             const salt = new Uint8Array(settings.salt);
             const testKey = await this.deriveKey(password, salt);
             
@@ -224,25 +238,34 @@ class EncryptionService {
                 const storageKey = localStorage.key(i);
                 
                 if (storageKey && storageKey.startsWith('NoteHub_Note_')) {
-                    const noteData = StorageUtils.getItem(storageKey);
-                    
-                    if (noteData && noteData._encrypted) {
-                        const testField = noteData.title || noteData.content;
-                        if (testField && testField.startsWith('ENCRYPTED:')) {
-                            try {
-                                const decryptedText = await this.decryptWithKey(testField, key);
-                                if (decryptedText && decryptedText.length > 0) {
-                                    return true; // Success - password is correct
+                    try {
+                        const noteData = localStorage.getItem(storageKey);
+                        if (noteData) {
+                            const parsed = JSON.parse(noteData);
+                            
+                            // If this note is encrypted, try to decrypt it
+                            if (parsed._encrypted && (parsed.title || parsed.content)) {
+                                const testField = parsed.title || parsed.content;
+                                if (testField && testField.startsWith('ENCRYPTED:')) {
+                                    // Try to decrypt with the provided key
+                                    const decryptedText = await this.decryptWithKey(testField, key);
+                                    // Additional check: decrypted text should be meaningful
+                                    if (decryptedText && decryptedText.length > 0) {
+                                        return true; // Success - password is correct
+                                    }
                                 }
-                            } catch (decryptError) {
-                                continue; // Try next note
                             }
                         }
+                    } catch (decryptError) {
+                        // If decryption fails, password is wrong
+                        console.log('Decryption failed for note, trying next...', decryptError);
+                        continue;
                     }
                 }
             }
             
-            // If no encrypted data found, assume password is correct (first time setup)
+            // If no encrypted data found, password verification passes
+            // This happens on first encryption enable - assume password is correct
             console.log('No encrypted notes found for password verification');
             return true;
         } catch (error) {
@@ -295,6 +318,7 @@ class EncryptionService {
      */
     async encrypt(plaintext) {
         if (!this.isEnabled || !this.encryptionKey) {
+            // Return plaintext if encryption is not enabled or unlocked
             return plaintext;
         }
 
@@ -337,6 +361,7 @@ class EncryptionService {
      */
     async decrypt(encryptedData) {
         if (!encryptedData || !encryptedData.startsWith('ENCRYPTED:')) {
+            // Return as-is if not encrypted
             return encryptedData;
         }
 
@@ -417,8 +442,7 @@ class EncryptionService {
 
     /**
      * Decrypt note data (including content and title)
-     * @param {Object} note - Note object to decrypt
-     * @returns {Promise<Object>} Note object with decrypted fields
+     * IMPROVED: Better error handling and user-friendly messages
      */
     async decryptNote(note) {
         if (!note || !note._encrypted) {
@@ -469,10 +493,11 @@ class EncryptionService {
             return decryptedNote;
         } catch (error) {
             console.error('Failed to decrypt note:', error);
+            // Return note with helpful error message
             return {
                 ...note,
                 title: '[? Decryption Error] Encrypted Note',
-                content: `[? Critical Decryption Error]\n\nThis note could not be decrypted.\n\nPossible causes:\n� Wrong password\n� Data corruption\n� Encryption key mismatch\n\nTroubleshooting:\n1. Ensure you're using the correct password\n2. Try unlocking encryption again\n3. Check browser console for technical details\n\nTechnical error: ${error.message}`,
+                content: `[? Critical Decryption Error]\n\nThis note could not be decrypted.\n\nPossible causes:\n• Wrong password\n• Data corruption\n• Encryption key mismatch\n\nTroubleshooting:\n1. Ensure you're using the correct password\n2. Try unlocking encryption again\n3. Check browser console for technical details\n\nTechnical error: ${error.message}`,
                 _decryptionError: true
             };
         }
@@ -535,35 +560,6 @@ class EncryptionService {
      */
     lock() {
         this.encryptionKey = null;
-    }
-
-    /**
-     * Generate encryption statistics
-     * @returns {Object} Statistics object
-     */
-    getStatistics() {
-        const stats = {
-            isEnabled: this.isEnabled,
-            isUnlocked: this.isEnabled && this.encryptionKey !== null,
-            algorithm: this.algorithm,
-            keyLength: this.keyLength,
-            encryptedNotes: 0,
-            totalNotes: 0
-        };
-
-        // Count encrypted vs total notes
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && key.startsWith('NoteHub_Note_')) {
-                stats.totalNotes++;
-                const noteData = StorageUtils.getItem(key);
-                if (noteData && noteData._encrypted) {
-                    stats.encryptedNotes++;
-                }
-            }
-        }
-
-        return stats;
     }
 }
 
