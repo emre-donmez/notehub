@@ -17,21 +17,31 @@ class EncryptionService {
 
     /**
      * Initialize encryption service and check if encryption is enabled
-     * FIXED: Now checks both local and cloud for encryption settings
+     * FIXED: Better cloud integration for cross-device encryption
      */
     async initialize() {
+        console.log('🔧 Initializing encryption service...');
+        
         // First check local storage
         const localEncryptionSettings = localStorage.getItem('NoteHub_EncryptionSettings');
         
         if (localEncryptionSettings) {
             const settings = JSON.parse(localEncryptionSettings);
             this.isEnabled = settings.enabled || false;
+            console.log('✅ Local encryption settings found, enabled:', this.isEnabled);
             return; // Local settings found, use them
         }
         
         // If no local settings, check cloud (for cross-device sync)
         try {
+            console.log('🔍 No local encryption settings, checking cloud...');
             await this.syncEncryptionSettingsFromCloud();
+            
+            if (this.isEnabled) {
+                console.log('✅ Encryption settings synced from cloud, enabled:', this.isEnabled);
+            } else {
+                console.log('ℹ️ No encryption settings found in cloud either');
+            }
         } catch (error) {
             console.warn('Could not sync encryption settings from cloud:', error);
             // Not a critical error, continue with encryption disabled
@@ -184,8 +194,7 @@ class EncryptionService {
 
     /**
      * Unlock encryption with master password
-     * @param {string} password - Master password
-     * @returns {Promise<boolean>} True if unlocked successfully
+     * FIXED: Better cloud integration and debugging
      */
     async unlockEncryption(password) {
         try {
@@ -198,20 +207,26 @@ class EncryptionService {
                 throw new Error('Encryption settings not found');
             }
 
+            console.log('🔓 Unlocking encryption with cloud support...');
+            console.log('   Algorithm:', settings.algorithm);
+            console.log('   Iterations:', settings.iterations);
+            console.log('   Salt length:', settings.salt?.length);
+
             // Recreate salt from stored array
             const salt = new Uint8Array(settings.salt);
             
             // Derive key from password and stored salt
-            const testKey = await this.deriveKey(password, salt);
+            const derivedKey = await this.deriveKey(password, salt);
             
-            // Verify password by trying to decrypt any existing encrypted note
-            const verified = await this.verifyPasswordWithExistingData(testKey);
+            // Verify password by trying to decrypt any existing encrypted note (local or cloud)
+            const verified = await this.verifyPasswordWithExistingData(derivedKey);
             if (!verified) {
                 throw new Error('Invalid password');
             }
             
             // Set the verified key
-            this.encryptionKey = testKey;
+            this.encryptionKey = derivedKey;
+            console.log('✅ Encryption unlocked successfully');
             return true;
         } catch (error) {
             console.error('Failed to unlock encryption:', error);
@@ -249,12 +264,11 @@ class EncryptionService {
 
     /**
      * Verify password by attempting to decrypt existing encrypted data
-     * @param {CryptoKey} key - Key to test
-     * @returns {Promise<boolean>} True if key can decrypt existing data
+     * FIXED: Better handling for cloud storage scenario
      */
     async verifyPasswordWithExistingData(key) {
         try {
-            // Look for any encrypted note in localStorage
+            // Look for any encrypted note in localStorage first
             for (let i = 0; i < localStorage.length; i++) {
                 const storageKey = localStorage.key(i);
                 
@@ -285,9 +299,37 @@ class EncryptionService {
                 }
             }
             
-            // If no encrypted data found, password verification passes
+            // If no local encrypted data found, try to load from cloud for verification
+            if (typeof firebaseService !== 'undefined' && firebaseService.isAuthenticated && firebaseService.isAuthenticated()) {
+                try {
+                    console.log('🔍 No local encrypted data found, checking cloud for password verification...');
+                    const cloudNotes = await firebaseService.loadAllUserNotes();
+                    
+                    for (const note of cloudNotes) {
+                        if (note._encrypted && (note.title || note.content)) {
+                            const testField = note.title || note.content;
+                            if (testField && testField.startsWith('ENCRYPTED:')) {
+                                try {
+                                    const decryptedText = await this.decryptWithKey(testField, key);
+                                    if (decryptedText && decryptedText.length > 0) {
+                                        console.log('✅ Password verified successfully using cloud data');
+                                        return true;
+                                    }
+                                } catch (cloudDecryptError) {
+                                    console.log('Cloud note decryption failed, trying next...', cloudDecryptError);
+                                    continue;
+                                }
+                            }
+                        }
+                    }
+                } catch (cloudError) {
+                    console.warn('Failed to load cloud data for password verification:', cloudError);
+                }
+            }
+            
+            // If no encrypted data found anywhere, password verification passes
             // This happens on first encryption enable - assume password is correct
-            console.log('No encrypted notes found for password verification');
+            console.log('No encrypted notes found for password verification (neither local nor cloud)');
             return true;
         } catch (error) {
             console.error('Error verifying password with existing data:', error);
