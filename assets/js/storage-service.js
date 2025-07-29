@@ -438,39 +438,69 @@ class StorageService {
 
     /**
      * Save data to current storage with optional encryption
-     * @param {Object} data - Data to save
-     * @returns {Promise<boolean>} True if saved successfully
+     * IMPROVED: Better encryption handling and error recovery
      */
     async saveData(data) {
         try {
-            // Encrypt data if encryption is enabled
+            console.log('?? Saving data with encryption support...');
+            
+            // Prepare data for storage (encrypt if needed)
             let processedData = data;
-            if (typeof encryptionService !== 'undefined' && encryptionService.isEnabled) {
-                processedData = await this.encryptDataForStorage(data);
+            if (typeof encryptionService !== 'undefined' && encryptionService.isEnabled && encryptionService.encryptionKey) {
+                console.log('?? Encrypting data before storage...');
+                try {
+                    processedData = await this.encryptDataForStorage(data);
+                    console.log('? Data encrypted successfully');
+                } catch (encryptError) {
+                    console.error('Encryption failed during save:', encryptError);
+                    throw new Error(`Encryption failed: ${encryptError.message}`);
+                }
             }
 
-            // Always save to localStorage as backup
+            // Always save to localStorage first (most reliable)
+            console.log('?? Saving to localStorage...');
             this.saveToLocalStorage(processedData);
+            console.log('? Data saved to localStorage');
 
             // Also save to cloud if sync is enabled
             if (this.syncEnabled && this.storageType === 'cloud') {
-                await firebaseService.saveUserNotes(processedData);
-                this.lastSyncTime = new Date().toISOString();
-                localStorage.setItem('NoteHub_LastSyncTime', this.lastSyncTime);
+                console.log('?? Saving to cloud...');
+                try {
+                    await firebaseService.saveUserNotes(processedData);
+                    this.lastSyncTime = new Date().toISOString();
+                    localStorage.setItem('NoteHub_LastSyncTime', this.lastSyncTime);
+                    console.log('? Data saved to cloud');
+                } catch (cloudError) {
+                    console.error('Cloud save failed:', cloudError);
+                    // Don't throw - localStorage save succeeded
+                    console.log('?? Cloud save failed but localStorage succeeded');
+                }
             }
 
             return true;
         } catch (error) {
-            console.error('Failed to save data:', error);
-            // If cloud save fails, at least we have localStorage backup
-            return this.storageType === 'local';
+            console.error('Critical error saving data:', error);
+            
+            // If encryption failed, try saving without encryption as emergency fallback
+            if (error.message.includes('Encryption failed')) {
+                console.log('?? Attempting emergency save without encryption...');
+                try {
+                    this.saveToLocalStorage(data);
+                    console.log('? Emergency save successful');
+                    return false; // Indicate partial success
+                } catch (emergencyError) {
+                    console.error('Emergency save also failed:', emergencyError);
+                }
+            }
+            
+            throw error;
         }
     }
 
     /**
      * Save individual note to current storage with optional encryption
      * @param {Object} note - Note object to save
-     * @returns {Promise<boolean>} True if saved successfully
+     * @returns {Promise<boolean>}
      */
     async saveNote(note) {
         try {
@@ -547,60 +577,76 @@ class StorageService {
 
     /**
      * Load data from current storage with automatic decryption
-     * IMPROVED: Better encryption settings sync for cross-device access
+     * PRODUCTION READY: Essential logging only
      */
     async loadData() {
         try {
+            // Ensure encryption service is initialized
+            if (typeof encryptionService !== 'undefined' && !encryptionService.isInitialized) {
+                await encryptionService.initialize();
+            }
+
             let data = null;
 
+            // Try cloud first if sync is enabled
             if (this.syncEnabled && this.storageType === 'cloud') {
-                // Try to load from cloud first
-                const cloudData = await firebaseService.loadUserNotes();
-                if (cloudData) {
-                    // Check if cloud data is encrypted but we don't have encryption settings
-                    const hasEncryptedNotes = cloudData.tabs && cloudData.tabs.some(tab => tab._encrypted);
-                    
-                    if (hasEncryptedNotes && !encryptionService.isEnabled) {
-                        console.log('?? Found encrypted notes in cloud, syncing encryption settings...');
-                        // Try to sync encryption settings from cloud
-                        await encryptionService.syncEncryptionSettingsFromCloud();
+                try {
+                    const cloudData = await firebaseService.loadUserNotes();
+                    if (cloudData) {
+                        // Check if we have encrypted notes but encryption not set up locally
+                        const hasEncryptedNotes = cloudData.tabs && cloudData.tabs.some(tab => tab._encrypted);
+                        
+                        if (hasEncryptedNotes && !encryptionService.isEnabled) {
+                            // Re-initialize encryption service to sync settings from cloud
+                            encryptionService.isInitialized = false;
+                            await encryptionService.initialize();
+                        }
+                        
+                        // Decrypt cloud data if needed
+                        if (typeof encryptionService !== 'undefined') {
+                            data = await this.decryptDataFromStorage(cloudData);
+                        } else {
+                            data = cloudData;
+                        }
+                        
+                        return data;
                     }
-                    
-                    // Decrypt cloud data if needed
-                    if (typeof encryptionService !== 'undefined') {
-                        data = await this.decryptDataFromStorage(cloudData);
-                    } else {
-                        data = cloudData;
-                    }
-                    // DO NOT save decrypted data to localStorage for security!
-                    // Only cache in memory for UI usage
-                    return data;
+                } catch (cloudError) {
+                    console.warn('Failed to load from cloud, using local storage:', cloudError);
                 }
             }
 
-            // Load from localStorage (potentially encrypted)
+            // Load from localStorage
             const localData = this.loadFromLocalStorage();
+            
             if (localData && typeof encryptionService !== 'undefined') {
-                // Decrypt for UI usage but don't store decrypted data back to localStorage
-                data = await this.decryptDataFromStorage(localData);
+                try {
+                    data = await this.decryptDataFromStorage(localData);
+                } catch (decryptError) {
+                    console.error('Failed to decrypt local data:', decryptError);
+                    
+                    // If decryption fails and encryption is enabled, return null to force unlock
+                    if (encryptionService.isEnabled && !encryptionService.encryptionKey) {
+                        return null;
+                    }
+                    
+                    data = localData;
+                }
             } else {
                 data = localData;
             }
 
             return data;
         } catch (error) {
-            console.error('Failed to load data from cloud, using localStorage:', error);
-            const localData = this.loadFromLocalStorage();
-            if (localData && typeof encryptionService !== 'undefined') {
-                try {
-                    return await this.decryptDataFromStorage(localData);
-                } catch (decryptError) {
-                    console.error('Failed to decrypt local data:', decryptError);
-                    // Return null instead of encrypted data - force unlock
-                    return null;
-                }
+            console.error('Critical error loading data:', error);
+            
+            // Last resort fallback
+            try {
+                return this.loadFromLocalStorage();
+            } catch (fallbackError) {
+                console.error('Fallback data loading failed:', fallbackError);
+                return null;
             }
-            return localData;
         }
     }
 
@@ -628,24 +674,80 @@ class StorageService {
 
     /**
      * Decrypt data structure from storage
-     * @param {Object} data - Data to decrypt
-     * @returns {Promise<Object>} Decrypted data structure
+     * IMPROVED: Better error handling and recovery
      */
     async decryptDataFromStorage(data) {
-        if (!data || !data.tabs) return data;
-
-        const decryptedData = {
-            ...data,
-            tabs: []
-        };
-
-        // Decrypt each tab
-        for (const tab of data.tabs) {
-            const decryptedTab = await encryptionService.decryptNote(tab);
-            decryptedData.tabs.push(decryptedTab);
+        if (!data || !data.tabs) {
+            return data;
         }
 
-        return decryptedData;
+        console.log(`?? Decrypting ${data.tabs.length} notes from storage...`);
+
+        try {
+            const decryptedData = {
+                ...data,
+                tabs: []
+            };
+
+            let successCount = 0;
+            let errorCount = 0;
+
+            // Decrypt each tab with individual error handling
+            for (const tab of data.tabs) {
+                try {
+                    const decryptedTab = await encryptionService.decryptNote(tab);
+                    decryptedData.tabs.push(decryptedTab);
+                    
+                    // Check if decryption actually succeeded
+                    if (!decryptedTab._decryptionError) {
+                        successCount++;
+                    } else {
+                        errorCount++;
+                    }
+                } catch (tabError) {
+                    console.error(`Failed to decrypt tab ${tab.id}:`, tabError);
+                    
+                    // Add error note instead of failing completely
+                    decryptedData.tabs.push({
+                        ...tab,
+                        title: '[? Decrypt Error] ' + (tab.title || 'Untitled'),
+                        content: `[? Decryption Failed]\n\nThis note could not be decrypted.\n\nError: ${tabError.message}`,
+                        _decryptionError: true
+                    });
+                    errorCount++;
+                }
+            }
+
+            console.log(`? Decryption complete: ${successCount} success, ${errorCount} errors`);
+
+            // If all notes failed to decrypt and encryption is enabled, this might be a key issue
+            if (errorCount > 0 && successCount === 0 && encryptionService.isEnabled) {
+                console.warn('?? All notes failed to decrypt - possible key issue');
+                
+                // If encryption key is available but all decryption failed, lock encryption
+                if (encryptionService.encryptionKey) {
+                    console.log('?? Locking encryption due to widespread decryption failure');
+                    encryptionService.lock();
+                }
+            }
+
+            return decryptedData;
+        } catch (error) {
+            console.error('Critical error during data decryption:', error);
+            
+            // Return original data with error markers
+            const errorData = {
+                ...data,
+                tabs: data.tabs.map(tab => ({
+                    ...tab,
+                    title: '[? Critical Error] ' + (tab.title || 'Untitled'),
+                    content: `[? Critical Decryption Error]\n\nA critical error occurred during decryption.\n\nError: ${error.message}`,
+                    _decryptionError: true
+                }))
+            };
+            
+            return errorData;
+        }
     }
 
     /**
