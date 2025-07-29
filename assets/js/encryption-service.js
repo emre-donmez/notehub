@@ -17,14 +17,24 @@ class EncryptionService {
 
     /**
      * Initialize encryption service and check if encryption is enabled
-     * @returns {Promise<void>}
+     * FIXED: Now checks both local and cloud for encryption settings
      */
     async initialize() {
-        // Check if user has encryption enabled
-        const encryptionSettings = localStorage.getItem('NoteHub_EncryptionSettings');
-        if (encryptionSettings) {
-            const settings = JSON.parse(encryptionSettings);
+        // First check local storage
+        const localEncryptionSettings = localStorage.getItem('NoteHub_EncryptionSettings');
+        
+        if (localEncryptionSettings) {
+            const settings = JSON.parse(localEncryptionSettings);
             this.isEnabled = settings.enabled || false;
+            return; // Local settings found, use them
+        }
+        
+        // If no local settings, check cloud (for cross-device sync)
+        try {
+            await this.syncEncryptionSettingsFromCloud();
+        } catch (error) {
+            console.warn('Could not sync encryption settings from cloud:', error);
+            // Not a critical error, continue with encryption disabled
         }
     }
 
@@ -56,7 +66,10 @@ class EncryptionService {
             localStorage.setItem('NoteHub_EncryptionSettings', JSON.stringify(settings));
             this.isEnabled = true;
             
-            // FIXED: Encrypt existing plain text notes instead of deleting them
+            // NEW: Sync encryption settings to cloud for cross-device access
+            await this.syncEncryptionSettingsToCloud(settings);
+            
+            // Encrypt existing plain text notes instead of deleting them
             await this.encryptExistingPlainTextNotes();
             
             return true;
@@ -68,7 +81,7 @@ class EncryptionService {
 
     /**
      * NEW: Encrypt existing plain text notes when enabling encryption
-     * This preserves user data instead of deleting it
+     * FIXED: Better handling of existing plain text notes
      */
     async encryptExistingPlainTextNotes() {
         try {
@@ -86,9 +99,13 @@ class EncryptionService {
                         const noteData = localStorage.getItem(key);
                         if (noteData) {
                             const parsed = JSON.parse(noteData);
-                            // If note is not marked as encrypted, it's plain text
-                            if (!parsed._encrypted) {
-                                noteKeys.push(key);
+                            // If note is not marked as encrypted AND doesn't have ENCRYPTED: data, it's plain text
+                            const isPlainText = !parsed._encrypted && 
+                                              (!parsed.title || !parsed.title.startsWith('ENCRYPTED:')) &&
+                                              (!parsed.content || !parsed.content.startsWith('ENCRYPTED:'));
+                            
+                            if (isPlainText) {
+                                noteKeys.push({ key, note: parsed });
                             }
                         }
                     } catch (error) {
@@ -100,22 +117,23 @@ class EncryptionService {
             let encryptedCount = 0;
             
             // Encrypt each plain text note
-            for (const key of noteKeys) {
+            for (const { key, note } of noteKeys) {
                 try {
-                    const noteData = localStorage.getItem(key);
-                    if (noteData) {
-                        const parsed = JSON.parse(noteData);
-                        
-                        console.log(`🔐 Encrypting note: ${key}`);
-                        
-                        // Encrypt the note
-                        const encryptedNote = await this.encryptNote(parsed);
-                        
+                    console.log(`🔐 Encrypting plain text note: ${key}`);
+                    console.log(`   Title: "${note.title || 'Untitled'}" (${note.title?.length || 0} chars)`);
+                    console.log(`   Content: ${note.content?.length || 0} chars`);
+                    
+                    // Encrypt the note (this will only encrypt if encryption is enabled and key is available)
+                    const encryptedNote = await this.encryptNote(note);
+                    
+                    // Verify encryption worked
+                    if (encryptedNote._encrypted) {
                         // Save the encrypted version
                         localStorage.setItem(key, JSON.stringify(encryptedNote));
                         encryptedCount++;
-                        
                         console.log(`✅ Successfully encrypted: ${key}`);
+                    } else {
+                        console.warn(`⚠️ Note ${key} was not encrypted (encryption may be disabled)`);
                     }
                 } catch (noteError) {
                     console.error(`❌ Failed to encrypt note ${key}:`, noteError);
@@ -129,7 +147,7 @@ class EncryptionService {
                 console.log('🧹 Cleared storage cache');
             }
             
-            console.log(`🎉 Successfully encrypted ${encryptedCount} notes.`);
+            console.log(`🎉 Successfully encrypted ${encryptedCount} notes out of ${noteKeys.length} plain text notes found.`);
             
         } catch (error) {
             console.error('Failed to encrypt existing notes:', error);
@@ -139,7 +157,7 @@ class EncryptionService {
 
     /**
      * Disable encryption (will require password verification)
-     * FIXED: Now properly decrypts notes before removing encryption
+     * FIXED: Now also removes encryption settings from cloud
      */
     async disableEncryption(password) {
         try {
@@ -149,10 +167,13 @@ class EncryptionService {
                 throw new Error('Invalid password');
             }
 
-            // Remove encryption settings
+            // Remove encryption settings from local storage
             localStorage.removeItem('NoteHub_EncryptionSettings');
             this.isEnabled = false;
             this.encryptionKey = null;
+            
+            // NEW: Also remove encryption settings from cloud
+            await this.removeEncryptionSettingsFromCloud();
             
             return true;
         } catch (error) {
@@ -356,12 +377,16 @@ class EncryptionService {
 
     /**
      * Decrypt data using AES-GCM
-     * @param {string} encryptedData - Encrypted data as base64 string
-     * @returns {Promise<string>} Decrypted plaintext
+     * FIXED: Better handling of non-encrypted data
      */
     async decrypt(encryptedData) {
-        if (!encryptedData || !encryptedData.startsWith('ENCRYPTED:')) {
-            // Return as-is if not encrypted
+        // Return as-is if data is null, undefined, or empty
+        if (!encryptedData) {
+            return encryptedData;
+        }
+        
+        // Return as-is if not encrypted (doesn't start with ENCRYPTED:)
+        if (!encryptedData.startsWith('ENCRYPTED:')) {
             return encryptedData;
         }
 
@@ -384,6 +409,11 @@ class EncryptionService {
             const base64Data = encryptedData.replace('ENCRYPTED:', '');
             const combined = this.base64ToArrayBuffer(base64Data);
             
+            // Validate combined buffer length
+            if (combined.length < this.ivLength + this.tagLength) {
+                throw new Error(`Invalid encrypted data length: ${combined.length}, expected at least ${this.ivLength + this.tagLength}`);
+            }
+            
             // Extract IV and encrypted data
             const iv = combined.slice(0, this.ivLength);
             const encryptedBuffer = combined.slice(this.ivLength);
@@ -404,7 +434,7 @@ class EncryptionService {
             return decoder.decode(decryptedBuffer);
         } catch (error) {
             console.error('Decryption failed:', error);
-            throw new Error('Failed to decrypt data. The data may be corrupted or the password is incorrect.');
+            throw new Error(`Failed to decrypt data. Details: ${error.message}`);
         }
     }
 
@@ -442,10 +472,15 @@ class EncryptionService {
 
     /**
      * Decrypt note data (including content and title)
-     * IMPROVED: Better error handling and user-friendly messages
+     * FIXED: Better handling of plain text vs encrypted notes
      */
     async decryptNote(note) {
-        if (!note || !note._encrypted) {
+        if (!note) {
+            return note;
+        }
+
+        // If note is not marked as encrypted, treat it as plain text
+        if (!note._encrypted) {
             return note;
         }
 
@@ -453,8 +488,8 @@ class EncryptionService {
             console.warn('Encryption key not available for decryption');
             return {
                 ...note,
-                title: '[?? Locked] ' + (note.title ? 'Encrypted Note' : 'Untitled'),
-                content: '[?? This note is encrypted. Please unlock encryption to view the content.]',
+                title: '[🔒 Locked] ' + (note.title ? 'Encrypted Note' : 'Untitled'),
+                content: '[🔒 This note is encrypted. Please unlock encryption to view the content.]',
                 _decryptionError: true,
                 _lockError: true
             };
@@ -463,27 +498,20 @@ class EncryptionService {
         try {
             const decryptedNote = { ...note };
             
-            // Decrypt title and content
-            if (note.title && note.title.startsWith('ENCRYPTED:')) {
-                try {
-                    decryptedNote.title = await this.decrypt(note.title);
-                } catch (titleError) {
-                    console.error('Failed to decrypt note title:', titleError);
-                    decryptedNote.title = '[Title Decrypt Error]';
+            // Decrypt title and content with detailed error handling
+            for (const field of ['title', 'content']) {
+                if (note[field] && note[field].startsWith('ENCRYPTED:')) {
+                    try {
+                        decryptedNote[field] = await this.decrypt(note[field]);
+                    } catch (error) {
+                        console.error(`Failed to decrypt note ${field}:`, error);
+                        decryptedNote[field] = `[❌ Decryption Failed]\n\nThis field could not be decrypted.\n\nPlease try:\n1. Unlock encryption again\n2. Verify you are using the correct password\n3. If problem persists, the data may be corrupted\n\nError: ${error.message}`;
+                        decryptedNote[`_${field}DecryptError`] = true;
+                    }
+                } else {
+                    // If the field doesn't start with ENCRYPTED:, keep it as is
+                    decryptedNote[field] = note[field] || '';
                 }
-            } else {
-                decryptedNote.title = note.title || 'Untitled';
-            }
-            
-            if (note.content && note.content.startsWith('ENCRYPTED:')) {
-                try {
-                    decryptedNote.content = await this.decrypt(note.content);
-                } catch (contentError) {
-                    console.error('Failed to decrypt note content:', contentError);
-                    decryptedNote.content = '[? Decryption Failed]\n\nThis note could not be decrypted.\n\nPlease try:\n1. Unlock encryption again\n2. Verify you are using the correct password\n3. If problem persists, the data may be corrupted';
-                }
-            } else {
-                decryptedNote.content = note.content || '';
             }
             
             // Remove encryption metadata for UI
@@ -496,10 +524,34 @@ class EncryptionService {
             // Return note with helpful error message
             return {
                 ...note,
-                title: '[? Decryption Error] Encrypted Note',
-                content: `[? Critical Decryption Error]\n\nThis note could not be decrypted.\n\nPossible causes:\n• Wrong password\n• Data corruption\n• Encryption key mismatch\n\nTroubleshooting:\n1. Ensure you're using the correct password\n2. Try unlocking encryption again\n3. Check browser console for technical details\n\nTechnical error: ${error.message}`,
+                title: '[❌ Decryption Error] Encrypted Note',
+                content: `[❌ Critical Decryption Error]\n\nThis note could not be decrypted.\n\nPossible causes:\n• Wrong password\n• Data corruption\n• Encryption key mismatch\n\nTroubleshooting:\n1. Ensure you're using the correct password\n2. Try unlocking encryption again\n3. Check browser console for technical details\n\nTechnical error: ${error.message}`,
                 _decryptionError: true
             };
+        }
+    }
+
+    /**
+     * Convert base64 string to ArrayBuffer
+     * @param {string} base64 - Base64 string to convert
+     * @returns {Uint8Array} Converted array buffer
+     */
+    base64ToArrayBuffer(base64) {
+        try {
+            if (!base64 || typeof base64 !== 'string') {
+                throw new Error('Invalid base64 input: empty or not a string');
+            }
+            
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            
+            return bytes;
+        } catch (error) {
+            console.error('Base64 to ArrayBuffer conversion failed:', error);
+            throw new Error(`Base64 conversion error: ${error.message}`);
         }
     }
 
@@ -509,26 +561,22 @@ class EncryptionService {
      * @returns {string} Base64 string
      */
     arrayBufferToBase64(buffer) {
-        const bytes = new Uint8Array(buffer);
-        let binary = '';
-        for (let i = 0; i < bytes.byteLength; i++) {
-            binary += String.fromCharCode(bytes[i]);
+        try {
+            if (!buffer) {
+                throw new Error('Invalid buffer: null or undefined');
+            }
+            
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            
+            return btoa(binary);
+        } catch (error) {
+            console.error('ArrayBuffer to Base64 conversion failed:', error);
+            throw new Error(`Base64 encoding error: ${error.message}`);
         }
-        return btoa(binary);
-    }
-
-    /**
-     * Convert base64 string to ArrayBuffer
-     * @param {string} base64 - Base64 string to convert
-     * @returns {Uint8Array} Converted array buffer
-     */
-    base64ToArrayBuffer(base64) {
-        const binary = atob(base64);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) {
-            bytes[i] = binary.charCodeAt(i);
-        }
-        return bytes;
     }
 
     /**
@@ -560,6 +608,70 @@ class EncryptionService {
      */
     lock() {
         this.encryptionKey = null;
+    }
+
+    /**
+     * Sync encryption settings to cloud for cross-device access
+     * @param {Object} settings - Encryption settings to sync
+     */
+    async syncEncryptionSettingsToCloud(settings) {
+        try {
+            // Only sync if we have Firebase and user is authenticated
+            if (typeof firebaseService !== 'undefined' && 
+                firebaseService.isAuthenticated && 
+                firebaseService.isAuthenticated()) {
+                
+                await firebaseService.saveEncryptionSettings(settings);
+                console.log('✅ Encryption settings synced to cloud');
+            }
+        } catch (error) {
+            console.warn('Failed to sync encryption settings to cloud:', error);
+            // Don't throw - this shouldn't prevent encryption from being enabled
+        }
+    }
+
+    /**
+     * Sync encryption settings from cloud for cross-device access
+     */
+    async syncEncryptionSettingsFromCloud() {
+        try {
+            // Only sync if we have Firebase and user is authenticated
+            if (typeof firebaseService !== 'undefined' && 
+                firebaseService.isAuthenticated && 
+                firebaseService.isAuthenticated()) {
+                
+                const cloudSettings = await firebaseService.loadEncryptionSettings();
+                
+                if (cloudSettings) {
+                    // Save to local storage
+                    localStorage.setItem('NoteHub_EncryptionSettings', JSON.stringify(cloudSettings));
+                    this.isEnabled = cloudSettings.enabled || false;
+                    console.log('✅ Encryption settings synced from cloud');
+                }
+            }
+        } catch (error) {
+            console.warn('Failed to sync encryption settings from cloud:', error);
+            // Don't throw - this shouldn't prevent app from working
+        }
+    }
+
+    /**
+     * Remove encryption settings from cloud
+     */
+    async removeEncryptionSettingsFromCloud() {
+        try {
+            // Only remove if we have Firebase and user is authenticated
+            if (typeof firebaseService !== 'undefined' && 
+                firebaseService.isAuthenticated && 
+                firebaseService.isAuthenticated()) {
+                
+                await firebaseService.deleteEncryptionSettings();
+                console.log('✅ Encryption settings removed from cloud');
+            }
+        } catch (error) {
+            console.warn('Failed to remove encryption settings from cloud:', error);
+            // Don't throw - this shouldn't prevent encryption from being disabled
+        }
     }
 }
 

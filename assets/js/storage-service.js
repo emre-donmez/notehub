@@ -547,7 +547,7 @@ class StorageService {
 
     /**
      * Load data from current storage with automatic decryption
-     * @returns {Promise<Object|null>} Loaded data or null
+     * IMPROVED: Better encryption settings sync for cross-device access
      */
     async loadData() {
         try {
@@ -557,6 +557,15 @@ class StorageService {
                 // Try to load from cloud first
                 const cloudData = await firebaseService.loadUserNotes();
                 if (cloudData) {
+                    // Check if cloud data is encrypted but we don't have encryption settings
+                    const hasEncryptedNotes = cloudData.tabs && cloudData.tabs.some(tab => tab._encrypted);
+                    
+                    if (hasEncryptedNotes && !encryptionService.isEnabled) {
+                        console.log('?? Found encrypted notes in cloud, syncing encryption settings...');
+                        // Try to sync encryption settings from cloud
+                        await encryptionService.syncEncryptionSettingsFromCloud();
+                    }
+                    
                     // Decrypt cloud data if needed
                     if (typeof encryptionService !== 'undefined') {
                         data = await this.decryptDataFromStorage(cloudData);

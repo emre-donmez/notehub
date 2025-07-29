@@ -340,6 +340,79 @@ class FirebaseService {
     getCurrentUser() {
         return this.user;
     }
+
+    /**
+     * Save encryption settings to Firestore for cross-device sync
+     * @param {Object} encryptionSettings - Encryption settings (salt, algorithm, etc.)
+     * @returns {Promise<boolean>} True if saved successfully
+     */
+    async saveEncryptionSettings(encryptionSettings) {
+        if (!this.db || !this.user) {
+            throw new Error('Firebase not initialized or user not authenticated');
+        }
+
+        try {
+            const settings = {
+                ...encryptionSettings,
+                lastModified: firebase.firestore.FieldValue.serverTimestamp(),
+                userId: this.user.uid
+            };
+
+            await this.db.collection('encryptionSettings').doc(this.user.uid).set(settings);
+            console.log('? Encryption settings saved to cloud');
+            return true;
+        } catch (error) {
+            console.error('Failed to save encryption settings to Firebase:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Load encryption settings from Firestore for cross-device sync
+     * @returns {Promise<Object|null>} Encryption settings or null if not found
+     */
+    async loadEncryptionSettings() {
+        if (!this.db || !this.user) {
+            throw new Error('Firebase not initialized or user not authenticated');
+        }
+
+        try {
+            const doc = await this.db.collection('encryptionSettings').doc(this.user.uid).get();
+            
+            if (doc.exists) {
+                const data = doc.data();
+                // Remove Firebase-specific fields
+                delete data.lastModified;
+                delete data.userId;
+                console.log('? Encryption settings loaded from cloud');
+                return data;
+            }
+            console.log('?? No encryption settings found in cloud');
+            return null;
+        } catch (error) {
+            console.error('Failed to load encryption settings from Firebase:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Delete encryption settings from Firestore
+     * @returns {Promise<boolean>} True if deleted successfully
+     */
+    async deleteEncryptionSettings() {
+        if (!this.db || !this.user) {
+            throw new Error('Firebase not initialized or user not authenticated');
+        }
+
+        try {
+            await this.db.collection('encryptionSettings').doc(this.user.uid).delete();
+            console.log('? Encryption settings deleted from cloud');
+            return true;
+        } catch (error) {
+            console.error('Failed to delete encryption settings from Firebase:', error);
+            throw error;
+        }
+    }
 }
 
 // Export singleton instance
