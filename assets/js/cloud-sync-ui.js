@@ -285,38 +285,18 @@ class CloudSyncUI {
     }
 
     /**
-     * Show notification to user
+     * Show notification using the global notification manager
      * @param {string} message - Notification message
-     * @param {string} type - Notification type ('success', 'error', 'info')
+     * @param {string} type - Notification type ('success', 'error', 'info', 'warning')
+     * @param {Object} options - Optional configuration
      */
-    showNotification(message, type = 'info') {
-        const notification = document.createElement('div');
-        notification.className = `notification notification-${type}`;
-        notification.textContent = message;
-        
-        // Set basic styles
-        Object.assign(notification.style, {
-            position: 'fixed',
-            top: '20px',
-            right: '20px',
-            padding: '10px 20px',
-            borderRadius: '5px',
-            color: 'white',
-            fontWeight: 'bold',
-            zIndex: '10000',
-            maxWidth: '300px',
-            backgroundColor: type === 'success' ? '#4CAF50' : 
-                             type === 'error' ? '#f44336' : '#2196F3'
-        });
-
-        document.body.appendChild(notification);
-
-        // Remove notification after 3 seconds
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
-            }
-        }, 3000);
+    showNotification(message, type = 'info', options = {}) {
+        if (typeof notificationManager !== 'undefined') {
+            return notificationManager.show(message, type, options);
+        } else {
+            // Fallback to console log if notification manager is not available
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
     }
 }
 

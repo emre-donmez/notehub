@@ -806,9 +806,22 @@ textarea {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     font-size: 14px;
     animation: slideIn 0.3s ease-out;
+    cursor: pointer;
+    user-select: none;
     /* Handle safe areas */
     top: calc(20px + var(--safe-area-inset-top));
     right: calc(20px + var(--safe-area-inset-right));
+    /* Smooth transitions */
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.notification:hover {
+    transform: translateX(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.notification:active {
+    transform: scale(0.98);
 }
 
 @keyframes slideIn {
@@ -832,6 +845,10 @@ textarea {
 
 .notification-info {
     background-color: var(--accent-color);
+}
+
+.notification-warning {
+    background-color: var(--warning-color);
 }
 
 /* Input file element - make sure it doesn't interfere */
@@ -1117,6 +1134,13 @@ input[type="file"] {
         max-width: none;
         font-size: 13px;
         padding: 12px 16px;
+        /* Disable hover effects on mobile */
+        transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .notification:hover {
+        transform: none; /* Disable hover transform on mobile */
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); /* Keep original shadow */
     }
 
     /* Input improvements to prevent zoom */

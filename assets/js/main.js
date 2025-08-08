@@ -480,7 +480,11 @@ class NoteHub {
         } catch (error) {
             console.error('Failed to save data:', error);
             if (error.name === 'QuotaExceededError') {
-                alert('Storage quota exceeded! Please export your notes.');
+                if (typeof notificationManager !== 'undefined') {
+                    notificationManager.error('Storage quota exceeded! Please export your notes.');
+                } else {
+                    alert('Storage quota exceeded! Please export your notes.');
+                }
             }
         }
     }
@@ -500,7 +504,11 @@ class NoteHub {
         } catch (error) {
             console.error('Failed to save note:', error);
             if (error.name === 'QuotaExceededError') {
-                alert('Storage quota exceeded! Please export your notes.');
+                if (typeof notificationManager !== 'undefined') {
+                    notificationManager.error('Storage quota exceeded! Please export your notes.');
+                } else {
+                    alert('Storage quota exceeded! Please export your notes.');
+                }
             }
         }
     }
@@ -625,12 +633,18 @@ class NoteHub {
             URL.revokeObjectURL(url);
             
             // Show success notification
-            if (typeof cloudSyncUI !== 'undefined' && cloudSyncUI.showNotification) {
+            if (typeof notificationManager !== 'undefined') {
+                notificationManager.success('Notes exported successfully!');
+            } else if (typeof cloudSyncUI !== 'undefined' && cloudSyncUI.showNotification) {
                 cloudSyncUI.showNotification('Notes exported successfully!', 'success');
             }
         } catch (error) {
             console.error('Export failed:', error);
-            alert('Export failed: ' + error.message);
+            if (typeof notificationManager !== 'undefined') {
+                notificationManager.error('Export failed: ' + error.message);
+            } else {
+                alert('Export failed: ' + error.message);
+            }
         }
     }
 
@@ -648,7 +662,11 @@ class NoteHub {
                 const data = JSON.parse(e.target.result);
 
                 if (!data.tabs || !Array.isArray(data.tabs)) {
-                    alert('Invalid file format! Please select a valid NoteHub export file.');
+                    if (typeof notificationManager !== 'undefined') {
+                        notificationManager.error('Invalid file format! Please select a valid NoteHub export file.');
+                    } else {
+                        alert('Invalid file format! Please select a valid NoteHub export file.');
+                    }
                     return;
                 }
 
@@ -702,18 +720,28 @@ class NoteHub {
                     }, 10);
                     
                     // Show success notification
-                    if (typeof cloudSyncUI !== 'undefined' && cloudSyncUI.showNotification) {
+                    if (typeof notificationManager !== 'undefined') {
+                        notificationManager.success(`${data.tabs.length} notes imported successfully!`);
+                    } else if (typeof cloudSyncUI !== 'undefined' && cloudSyncUI.showNotification) {
                         cloudSyncUI.showNotification(`${data.tabs.length} notes imported successfully!`, 'success');
                     } else {
                         alert(`${data.tabs.length} notes imported successfully!`);
                     }
                 } catch (error) {
                     console.error('Import process failed:', error);
-                    alert('Import failed during processing: ' + error.message);
+                    if (typeof notificationManager !== 'undefined') {
+                        notificationManager.error('Import failed during processing: ' + error.message);
+                    } else {
+                        alert('Import failed during processing: ' + error.message);
+                    }
                 }
             } catch (error) {
                 console.error('Import file parsing failed:', error);
-                alert('File reading error: ' + error.message);
+                if (typeof notificationManager !== 'undefined') {
+                    notificationManager.error('File reading error: ' + error.message);
+                } else {
+                    alert('File reading error: ' + error.message);
+                }
             }
         };
 

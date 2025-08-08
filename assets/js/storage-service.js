@@ -222,14 +222,17 @@ class StorageService {
     /**
      * Show smart sync notification
      * @param {string} message - Notification message
-     * @param {string} type - Notification type
+     * @param {string} type - Notification type ('success', 'error', 'info', 'warning')
      */
     showSmartSyncNotification(message, type) {
-        // Use cloud sync UI notification if available
-        if (typeof cloudSyncUI !== 'undefined' && cloudSyncUI.showNotification) {
+        // Use global notification manager if available
+        if (typeof notificationManager !== 'undefined') {
+            notificationManager.show(message, type);
+        } else if (typeof cloudSyncUI !== 'undefined' && cloudSyncUI.showNotification) {
+            // Fallback to cloud sync UI notification
             cloudSyncUI.showNotification(message, type);
         } else {
-            // Fallback to console log
+            // Final fallback to console log
             console.log(`Smart Sync [${type}]: ${message}`);
         }
     }
@@ -388,7 +391,33 @@ class StorageService {
         localStorage.setItem('NoteHub_StorageType', type);
 
         if (type === 'cloud') {
-            await this.enableSync();
+            const syncEnabled = await this.enableSync();
+            
+            // If sync was enabled successfully and user is authenticated, perform smart sync
+            if (syncEnabled && firebaseService.isAuthenticated()) {
+                try {
+                    // Show notification that sync is starting
+                    this.showSmartSyncNotification('Switching to cloud storage... Syncing your notes.', 'info');
+                    
+                    // Perform smart sync to handle data merging/conflicts
+                    const syncResult = await this.performSmartSync();
+                    
+                    if (syncResult.success) {
+                        // Additional notification for successful switch
+                        setTimeout(() => {
+                            this.showSmartSyncNotification('Successfully switched to cloud storage!', 'success');
+                        }, 1000);
+                        
+                        // If app needs reload after sync, do it
+                        if (syncResult.shouldReload) {
+                            setTimeout(() => window.location.reload(), 2000);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Smart sync failed during storage type change:', error);
+                    this.showSmartSyncNotification('Switched to cloud storage, but sync failed. Please try manual sync.', 'warning');
+                }
+            }
         } else {
             this.disableSync();
         }
