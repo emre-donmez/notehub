@@ -45,8 +45,8 @@ class StorageService {
                 if (syncEnabled) {
                     // Automatically perform smart sync when user signs in
                     await this.performSmartSync();
+                    }
                 }
-            }
         } else {
             // User signed out - disable cloud sync and clear cache
             this.disableSync();
@@ -162,14 +162,12 @@ class StorageService {
                     success: true,
                     action: 'download',
                     message: 'Your cloud notes have been downloaded automatically',
-                    requiresUserInput: false
+                    requiresUserInput: false,
+                    shouldReload: true
                 };
                 
                 // Show notification
                 this.showSmartSyncNotification(syncResult.message, 'success');
-                
-                // Reload app to show downloaded notes
-                setTimeout(() => window.location.reload(), 1500);
             } else if (hasLocalData && !hasCloudData) {
                 // Only local has meaningful data - upload it automatically
                 await firebaseService.saveUserNotes(localData);
@@ -202,6 +200,9 @@ class StorageService {
                     // Show notification after conflict resolution
                     if (syncResult.success) {
                         this.showSmartSyncNotification(syncResult.message, 'success');
+                        
+                        // Set shouldReload flag for any successful conflict resolution
+                        syncResult.shouldReload = true;
                     }
                 }
             }
@@ -344,18 +345,24 @@ class StorageService {
         // Show modal
         modal.style.display = 'flex';
 
-        // Close modal on background click
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                this.hideConflictModal();
-                resolve({
-                    success: false,
-                    action: 'cancelled',
-                    message: 'Sync cancelled by user',
-                    requiresUserInput: false
-                });
+        // Prevent closing modal without making a choice
+        // Remove the background click event listener that was allowing cancellation
+        // Users must select one of the two options to proceed
+        
+        // Add escape key prevention
+        const handleKeyPress = (e) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                // Show a brief notification that user must make a choice
+                this.showSmartSyncNotification('Please choose which notes to keep - you cannot cancel this operation.', 'warning');
             }
-        }, { once: true });
+        };
+        
+        document.addEventListener('keydown', handleKeyPress);
+        
+        // Store the handler so we can remove it later
+        modal._keyHandler = handleKeyPress;
     }
 
     /**
@@ -365,6 +372,12 @@ class StorageService {
         const modal = document.getElementById('conflict-modal');
         if (modal) {
             modal.style.display = 'none';
+            
+            // Remove the keydown event listener if it exists
+            if (modal._keyHandler) {
+                document.removeEventListener('keydown', modal._keyHandler);
+                delete modal._keyHandler;
+            }
         }
     }
 
