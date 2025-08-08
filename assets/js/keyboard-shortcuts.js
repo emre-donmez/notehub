@@ -6,7 +6,7 @@ class KeyboardShortcuts {
     constructor(noteHub) {
         this.noteHub = noteHub;
         this.isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-        this.modifierKey = this.isMac ? 'altKey' : 'altKey'; // Alt key for both platforms
+        this.modifierKey = this.isMac ? 'ctrlKey' : 'altKey'; 
         this.isQuickSelectorOpen = false;
         
         this.init();
@@ -35,18 +35,18 @@ class KeyboardShortcuts {
                 return;
             }
 
-            // Handle shortcuts
-            if (e[this.modifierKey] && !e.ctrlKey && !e.shiftKey && !e.metaKey) {
-                this.handleAltShortcuts(e);
+            // Handle shortcuts - Ctrl on Mac, Alt on Windows/Linux
+            if (e[this.modifierKey] && !e.shiftKey && !(this.isMac ? e.altKey : e.ctrlKey) && !e.metaKey) {
+                this.handleModifierShortcuts(e);
             }
         });
     }
 
     /**
-     * Handle Alt/Option key shortcuts
+     * Handle Ctrl (Mac) / Alt (Windows/Linux) key shortcuts
      * @param {KeyboardEvent} e - Keyboard event
      */
-    handleAltShortcuts(e) {
+    handleModifierShortcuts(e) {
         switch (e.key.toLowerCase()) {
             case 't':
                 e.preventDefault();
@@ -326,7 +326,7 @@ class KeyboardShortcuts {
      * @returns {string} Platform-specific shortcut text
      */
     getShortcutText(key) {
-        const prefix = this.isMac ? '⌥' : 'Alt';
+        const prefix = this.isMac ? '⌃' : 'Alt';
         return `${prefix} + ${key}`;
     }
 
