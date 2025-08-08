@@ -43,12 +43,30 @@ class NoteHub {
                 this.createNewTab();
             }
 
+            // Initialize keyboard shortcuts and help system
+            this.initializeKeyboardAndHelp();
+
             this.isInitialized = true;
             console.log('NoteHub initialized successfully');
         } catch (error) {
             console.error('Failed to initialize NoteHub:', error);
             // Show error to user but don't fallback to basic mode
             alert('Failed to initialize NoteHub. Please refresh the page.');
+        }
+    }
+
+    /**
+     * Initialize keyboard shortcuts and help system
+     */
+    initializeKeyboardAndHelp() {
+        // Initialize keyboard shortcuts
+        if (typeof KeyboardShortcuts !== 'undefined') {
+            this.keyboardShortcuts = new KeyboardShortcuts(this);
+            
+            // Initialize help system
+            if (typeof HelpSystem !== 'undefined') {
+                this.helpSystem = new HelpSystem(this.keyboardShortcuts);
+            }
         }
     }
 
@@ -236,7 +254,7 @@ class NoteHub {
                 const newTargetIndex = Array.from(this.tabsList.children).indexOf(this.draggedTab);
                 this.tabs.splice(newTargetIndex, 0, draggedTabData);
 
-                this.switchToTab(tabId);
+                this.switchToTab(draggedTabData.id);
                 this.scrollToActiveTab();
                 
                 // Save updated tab order

@@ -54,6 +54,9 @@
                 <button id="sync-btn" class="control-btn icon-btn" title="Cloud Sync" style="display: none;">
                     <img src="assets/icons/cloud.svg" alt="Cloud Sync" class="icon" id="sync-icon">
                 </button>
+                <button id="help-btn" class="control-btn icon-btn" title="Help & Shortcuts">
+                    <img src="assets/icons/help.svg" alt="Help" class="icon">
+                </button>
                 <button id="theme-toggle" class="control-btn icon-btn" title="Toggle Theme">
                     <img src="assets/icons/dark-mode.svg" alt="Toggle Theme" class="icon theme-icon" id="theme-icon">
                 </button>
@@ -167,6 +170,93 @@
         </div>
     </div>
 
+    <!-- Quick Selector Modal -->
+    <div id="quick-selector-modal" class="modal quick-selector-modal" style="display: none;">
+        <div class="modal-content quick-selector-content">
+            <div class="modal-header">
+                <h2>Quick Tab Selector</h2>
+                <span class="modal-close" id="quick-selector-close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="quick-selector-search">
+                    <input type="text" id="tab-search" placeholder="Type to search tabs..." autocomplete="off">
+                </div>
+                <div class="tab-list" id="quick-tab-list">
+                    <!-- Tabs will be populated here -->
+                </div>
+                <div class="quick-selector-help">
+                    <small>Use ↑↓ arrows to navigate, Enter to select, Esc to close</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div id="help-modal" class="modal" style="display: none;">
+        <div class="modal-content help-modal-content">
+            <div class="modal-header">
+                <h2>📝 NoteHub - Help & Shortcuts</h2>
+                <span class="modal-close" id="help-modal-close">&times;</span>
+            </div>
+            <div class="modal-body">
+         
+                
+                <div class="help-section">
+                    <h3>⌨️ Keyboard Shortcuts</h3>
+                    <div class="shortcuts-grid" id="shortcuts-grid">
+                        <!-- Shortcuts will be populated here -->
+                    </div>
+                    <div class="shortcuts-note">
+                        <p><small><strong>Note:</strong> On Mac, use <kbd>⌥ Option</kbd> key instead of <kbd>Alt</kbd></small></p>
+                    </div>
+                </div>
+                
+                <div class="help-section">
+                    <h3>💡 Tips & Tricks</h3>
+                    <div class="tips-list">
+                        <div class="tip-item">
+                            <span class="tip-icon">🏷️</span>
+                            <div class="tip-content">
+                                <strong>Rename Tabs</strong>
+                                <p>Double-click on any tab title to rename it, or use <kbd id="rename-shortcut">Alt + R</kbd></p>
+                            </div>
+                        </div>
+                        <div class="tip-item">
+                            <span class="tip-icon">🔄</span>
+                            <div class="tip-content">
+                                <strong>Drag & Drop</strong>
+                                <p>Drag tabs to reorder them. You can also drop tabs at the end of the tab list.</p>
+                            </div>
+                        </div>
+                        <div class="tip-item">
+                            <span class="tip-icon">🔍</span>
+                            <div class="tip-content">
+                                <strong>Quick Search</strong>
+                                <p>Use <kbd id="search-shortcut">Alt + Q</kbd> to open the quick tab selector and search through all your notes.</p>
+                            </div>
+                        </div>
+                        <div class="tip-item">
+                            <span class="tip-icon">☁️</span>
+                            <div class="tip-content">
+                                <strong>Cloud Sync</strong>
+                                <p>Enable cloud sync to access your notes from any device. Your notes are automatically saved and synchronized.</p>
+                            </div>
+                        </div>
+                        <div class="tip-item">
+                            <span class="tip-icon">🌙</span>
+                            <div class="tip-content">
+                                <strong>Theme Detection</strong>
+                                <p>NoteHub automatically detects your system's theme preference. You can manually toggle between light and dark themes.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+    
+            </div>
+        </div>
+    </div>
+
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -178,6 +268,8 @@
     <script src="assets/js/storage-service.js"></script>
     <script src="assets/js/notification-manager.js"></script>
     <script src="assets/js/cloud-sync-ui.js"></script>
+    <script src="assets/js/keyboard-shortcuts.js"></script>
+    <script src="assets/js/help-system.js"></script>
     <script src="assets/js/main.js"></script>
 </body>
 </html>
