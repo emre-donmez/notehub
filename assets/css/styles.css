@@ -271,6 +271,7 @@ body {
     display: flex;
     align-items: center;
     min-width: 0;
+    flex: 1;
 }
 
 .github-link {
@@ -282,6 +283,7 @@ body {
     gap: 6px;
     transition: color 0.2s;
     cursor: pointer;
+    min-width: 0;
 }
 
 .github-link:hover {
@@ -294,7 +296,14 @@ body {
     height: 20px;
     display: inline-block;
     vertical-align: middle;
-    margin-right: 4px;
+    flex-shrink: 0;
+}
+
+.repo-link-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
 }
 
 .bar-center {
@@ -307,6 +316,7 @@ body {
     pointer-events: none;
     user-select: none;
     letter-spacing: 1px;
+    z-index: 1;
 }
 
 /* Sync Status Indicator - moved to controls */
@@ -321,6 +331,8 @@ body {
     border-radius: 4px;
     border: 1px solid var(--border-color);
     margin-right: 8px;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .sync-status-text {
@@ -332,6 +344,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
 }
 
 .sync-status-icon img {
@@ -354,6 +367,7 @@ body {
     cursor: auto !important;
     z-index: 1;
     align-items: center;
+    flex-shrink: 0;
 }
 
 .control-btn {
@@ -365,6 +379,7 @@ body {
     font-size: 14px;
     color: var(--text-primary);
     transition: background-color 0.2s;
+    flex-shrink: 0;
 }
 
 .control-btn:hover {
@@ -752,68 +767,132 @@ input[type="file"] {
     transform: translateY(-1px);
 }
 
+/* Mobile Responsive Design */
 @media (max-width: 768px) {
     .control-bar {
-        padding: 6px 8px;
-        min-height: 40px;
-    }
-
-    .control-btn {
         padding: 4px 8px;
+        min-height: 44px;
+        flex-wrap: nowrap;
+        gap: 4px;
+    }
+
+    .bar-left {
+        flex: 0 1 auto;
+        min-width: 0;
+        max-width: 35%;
+        order: 1;
+    }
+
+    .github-link {
         font-size: 12px;
+        gap: 4px;
+        min-width: 0;
     }
 
-    .tab {
-        min-width: 100px;
-        padding: 6px 8px;
-    }
-
-    .editor {
-        padding: 12px;
-        font-size: 13px;
-    }
-
-    .tabs-list {
-        padding-right: 45px; /* Smaller space for mobile */
-    }
-
-    .new-tab-btn {
-        width: 45px;
-        padding: 6px 8px;
-        font-size: 14px;
-    }
-    .bar-center {
-        font-size: 13px;
-    }
-    .repo-link-text {
-        max-width: 80px;
-        font-size: 12px;
-    }
-    .icon {
-        width: 16px;
-        height: 16px;
-    }
     .github-svg {
         width: 16px;
         height: 16px;
     }
 
+    .repo-link-text {
+        max-width: 80px;
+        font-size: 11px;
+    }
+
+    .bar-center {
+        font-size: 13px;
+        left: 50%;
+        transform: translateX(-50%);
+        position: absolute;
+        max-width: 30%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        order: 2;
+    }
+
+    .controls {
+        gap: 2px;
+        flex: 0 0 auto;
+        order: 3;
+    }
+
+    .control-btn {
+        padding: 4px 6px;
+        font-size: 12px;
+    }
+
+    .icon {
+        width: 16px;
+        height: 16px;
+    }
+
+    .sync-status {
+        font-size: 10px;
+        padding: 3px 6px;
+        margin-right: 4px;
+        min-width: auto;
+    }
+
+    .sync-status-text {
+        display: none; /* Hide text on mobile to save space */
+    }
+
+    .sync-status-icon img {
+        width: 12px;
+        height: 12px;
+    }
+
+    /* Tab improvements for mobile */
+    .tab {
+        min-width: 80px;
+        max-width: 140px;
+        padding: 6px 8px;
+    }
+
+    .tab-title {
+        font-size: 11px;
+    }
+
+    .tabs-list {
+        padding-right: 40px; /* Smaller space for mobile new tab button */
+    }
+
+    .new-tab-btn {
+        width: 40px;
+        padding: 6px 8px;
+        font-size: 14px;
+    }
+
+    .scroll-btn {
+        padding: 6px 4px;
+        font-size: 14px;
+    }
+
+    /* Editor improvements */
+    .editor {
+        padding: 12px;
+        font-size: 13px;
+    }
+
+    /* Modal improvements for mobile */
     .modal-content {
         width: 95%;
         max-height: 90vh;
         border-radius: 8px;
+        margin: 10px;
     }
 
     .modal-header {
         padding: 16px 20px;
     }
 
-    .sync-section {
-        padding: 20px;
+    .modal-header h2 {
+        font-size: 18px;
     }
 
-    .sync-buttons {
-        gap: 8px;
+    .sync-section {
+        padding: 16px 20px;
     }
 
     .sync-action-btn {
@@ -821,18 +900,10 @@ input[type="file"] {
         font-size: 13px;
     }
 
-    .sync-status {
-        font-size: 11px;
-        padding: 4px 8px;
-    }
-
-    .sync-status-text {
-        display: none; /* Hide text on mobile */
-    }
-
     .conflict-info {
         flex-direction: column;
         gap: 12px;
+        padding: 12px;
     }
     
     .conflict-option {
@@ -841,6 +912,104 @@ input[type="file"] {
     
     .conflict-buttons {
         gap: 10px;
+        margin: 16px;
+    }
+
+    /* Notification improvements for mobile */
+    .notification {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        max-width: none;
+        font-size: 13px;
+        padding: 12px 16px;
+    }
+}
+
+/* Extra small mobile devices */
+@media (max-width: 480px) {
+    .control-bar {
+        padding: 3px 6px;
+        min-height: 40px;
+    }
+
+    .bar-left {
+        max-width: 30%;
+    }
+
+    .repo-link-text {
+        max-width: 60px;
+        font-size: 10px;
+    }
+
+    .bar-center {
+        font-size: 12px;
+        max-width: 40%;
+    }
+
+    .control-btn {
+        padding: 3px 5px;
+    }
+
+    .icon {
+        width: 14px;
+        height: 14px;
+    }
+
+    .github-svg {
+        width: 14px;
+        height: 14px;
+    }
+
+    .sync-status {
+        padding: 2px 4px;
+        margin-right: 2px;
+    }
+
+    .sync-status-icon img {
+        width: 10px;
+        height: 10px;
+    }
+
+    .tab {
+        min-width: 70px;
+        max-width: 120px;
+        padding: 4px 6px;
+    }
+
+    .tab-title {
+        font-size: 10px;
+    }
+
+    .tabs-list {
+        padding-right: 35px;
+    }
+
+    .new-tab-btn {
+        width: 35px;
+        padding: 4px 6px;
+        font-size: 12px;
+    }
+
+    .editor {
+        padding: 8px;
+        font-size: 12px;
+    }
+}
+
+/* Landscape orientation on mobile */
+@media (max-width: 768px) and (orientation: landscape) {
+    .control-bar {
+        min-height: 38px;
+        padding: 3px 8px;
+    }
+
+    .bar-center {
+        font-size: 12px;
+    }
+
+    .control-btn {
+        padding: 3px 6px;
     }
 }
 
