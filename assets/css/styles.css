@@ -11,6 +11,11 @@
     --success-color: #4CAF50;
     --error-color: #f44336;
     --warning-color: #ff9800;
+    /* Mobile safe area variables */
+    --safe-area-inset-top: env(safe-area-inset-top);
+    --safe-area-inset-right: env(safe-area-inset-right);
+    --safe-area-inset-bottom: env(safe-area-inset-bottom);
+    --safe-area-inset-left: env(safe-area-inset-left);
 }
 
 [data-theme="dark"] {
@@ -47,20 +52,38 @@
     box-sizing: border-box;
 }
 
+html {
+    /* Prevent zoom on input focus in iOS */
+    -webkit-text-size-adjust: 100%;
+    -moz-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background-color: var(--bg-primary);
     color: var(--text-primary);
     height: 100vh;
+    height: 100dvh; /* Use dynamic viewport height */
     overflow: hidden;
-    cursor: auto !important; 
+    cursor: auto !important;
+    /* Prevent iOS Safari bounce */
+    position: fixed;
+    width: 100%;
+    /* Support for safe areas on iOS */
+    padding-left: var(--safe-area-inset-left);
+    padding-right: var(--safe-area-inset-right);
 }
 
 .app-container {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    cursor: auto !important; 
+    height: 100dvh; /* Use dynamic viewport height */
+    cursor: auto !important;
+    /* Handle safe areas */
+    padding-top: var(--safe-area-inset-top);
 }
 
 /* Tabs Section */
@@ -70,6 +93,7 @@ body {
     border-bottom: 1px solid var(--border-color);
     position: relative;
     cursor: auto !important; 
+    flex-shrink: 0; /* Prevent shrinking */
 }
 
 .scroll-btn {
@@ -172,6 +196,9 @@ body {
     font-family: inherit;
     width: 100%;
     cursor: text !important; 
+    /* Prevent zoom on focus in iOS */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
 }
 
 .tab-close {
@@ -219,7 +246,8 @@ body {
 .content-area {
     flex: 1;
     overflow: hidden;
-    cursor: auto !important; 
+    cursor: auto !important;
+    min-height: 0; /* Allow flex shrinking */
 }
 
 .editor-container {
@@ -240,7 +268,14 @@ body {
     background-color: var(--bg-primary);
     color: var(--text-primary);
     display: none;
-    cursor: text !important; 
+    cursor: text !important;
+    /* Prevent zoom on focus in iOS */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    /* Better textarea handling on mobile */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
 }
 
 .editor.active {
@@ -253,7 +288,7 @@ body {
     filter: brightness(0) invert(1);
 }
 
-/* Control Bar (moved to bottom) */
+/* Control Bar - Fixed at bottom */
 .control-bar {
     display: flex;
     justify-content: space-between;
@@ -265,6 +300,9 @@ body {
     cursor: auto !important;
     position: relative;
     min-height: 48px;
+    flex-shrink: 0; /* Prevent shrinking */
+    /* Add safe area padding for bottom */
+    padding-bottom: calc(8px + var(--safe-area-inset-bottom));
 }
 
 .bar-left {
@@ -380,11 +418,28 @@ body {
     color: var(--text-primary);
     transition: background-color 0.2s;
     flex-shrink: 0;
+    /* Improve touch targets on mobile */
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .control-btn:hover {
     background-color: var(--hover-color);
     cursor: pointer !important; 
+}
+
+/* Input elements - prevent zoom on iOS */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+textarea {
+    font-size: 16px; /* Prevent zoom on iOS Safari */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
 }
 
 /* Cloud Sync Modal Styles - Centered */
@@ -399,6 +454,8 @@ body {
     justify-content: center;
     align-items: center;
     z-index: 10000;
+    /* Handle safe areas */
+    padding: var(--safe-area-inset-top) var(--safe-area-inset-right) var(--safe-area-inset-bottom) var(--safe-area-inset-left);
 }
 
 .modal-content {
@@ -642,6 +699,9 @@ body {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     font-size: 14px;
     animation: slideIn 0.3s ease-out;
+    /* Handle safe areas */
+    top: calc(20px + var(--safe-area-inset-top));
+    right: calc(20px + var(--safe-area-inset-right));
 }
 
 @keyframes slideIn {
@@ -769,11 +829,28 @@ input[type="file"] {
 
 /* Mobile Responsive Design */
 @media (max-width: 768px) {
+    body {
+        /* Ensure proper viewport on mobile */
+        position: fixed;
+        width: 100%;
+        height: 100vh;
+        height: 100dvh;
+    }
+
+    .app-container {
+        height: 100vh;
+        height: 100dvh;
+    }
+
     .control-bar {
         padding: 4px 8px;
-        min-height: 44px;
+        min-height: 50px; /* Larger touch target */
         flex-wrap: nowrap;
         gap: 4px;
+        /* Ensure bottom safe area */
+        padding-bottom: calc(4px + var(--safe-area-inset-bottom));
+        position: relative;
+        z-index: 1000; /* Ensure it stays on top */
     }
 
     .bar-left {
@@ -820,6 +897,8 @@ input[type="file"] {
     .control-btn {
         padding: 4px 6px;
         font-size: 12px;
+        min-width: 40px;
+        min-height: 40px;
     }
 
     .icon {
@@ -872,15 +951,25 @@ input[type="file"] {
     /* Editor improvements */
     .editor {
         padding: 12px;
-        font-size: 13px;
+        font-size: 14px; /* Keep readable on mobile */
+        /* Prevent iOS Safari from zooming on focus */
+        transform: translateZ(0);
+        -webkit-transform: translateZ(0);
     }
 
     /* Modal improvements for mobile */
+    .modal {
+        padding: 10px;
+        /* Handle safe areas on mobile */
+        padding-top: calc(10px + var(--safe-area-inset-top));
+        padding-bottom: calc(10px + var(--safe-area-inset-bottom));
+    }
+
     .modal-content {
         width: 95%;
-        max-height: 90vh;
+        max-height: calc(90vh - var(--safe-area-inset-top) - var(--safe-area-inset-bottom));
         border-radius: 8px;
-        margin: 10px;
+        margin: 0;
     }
 
     .modal-header {
@@ -896,8 +985,9 @@ input[type="file"] {
     }
 
     .sync-action-btn {
-        padding: 10px 14px;
-        font-size: 13px;
+        padding: 12px 16px; /* Better touch targets */
+        font-size: 14px;
+        min-height: 44px;
     }
 
     .conflict-info {
@@ -911,18 +1001,29 @@ input[type="file"] {
     }
     
     .conflict-buttons {
-        gap: 10px;
+        gap: 12px;
         margin: 16px;
     }
 
     /* Notification improvements for mobile */
     .notification {
-        top: 10px;
-        right: 10px;
-        left: 10px;
+        top: calc(10px + var(--safe-area-inset-top));
+        right: calc(10px + var(--safe-area-inset-right));
+        left: calc(10px + var(--safe-area-inset-left));
         max-width: none;
         font-size: 13px;
         padding: 12px 16px;
+    }
+
+    /* Input improvements to prevent zoom */
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="search"],
+    textarea,
+    .tab-title-input,
+    .editor {
+        font-size: 16px !important; /* Prevent zoom on iOS */
     }
 }
 
@@ -930,7 +1031,8 @@ input[type="file"] {
 @media (max-width: 480px) {
     .control-bar {
         padding: 3px 6px;
-        min-height: 40px;
+        min-height: 48px;
+        padding-bottom: calc(3px + var(--safe-area-inset-bottom));
     }
 
     .bar-left {
@@ -949,6 +1051,8 @@ input[type="file"] {
 
     .control-btn {
         padding: 3px 5px;
+        min-width: 36px;
+        min-height: 36px;
     }
 
     .icon {
@@ -993,15 +1097,16 @@ input[type="file"] {
 
     .editor {
         padding: 8px;
-        font-size: 12px;
+        font-size: 16px !important; /* Prevent zoom */
     }
 }
 
 /* Landscape orientation on mobile */
 @media (max-width: 768px) and (orientation: landscape) {
     .control-bar {
-        min-height: 38px;
+        min-height: 44px;
         padding: 3px 8px;
+        padding-bottom: calc(3px + var(--safe-area-inset-bottom));
     }
 
     .bar-center {
@@ -1010,6 +1115,30 @@ input[type="file"] {
 
     .control-btn {
         padding: 3px 6px;
+        min-width: 36px;
+        min-height: 36px;
+    }
+}
+
+/* iOS specific fixes */
+@supports (-webkit-touch-callout: none) {
+    body {
+        /* iOS Safari specific fix */
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .editor {
+        /* Better iOS keyboard handling */
+        -webkit-user-select: text;
+        user-select: text;
+    }
+}
+
+/* PWA and fullscreen support */
+@media (display-mode: standalone) {
+    body {
+        /* PWA mode adjustments */
+        padding-top: var(--safe-area-inset-top);
     }
 }
 
@@ -1025,4 +1154,15 @@ button, input[type="button"], input[type="submit"], input[type="file"] {
 
 input[type="text"], textarea {
     cursor: text !important;
+}
+
+/* Prevent text selection on UI elements */
+.control-bar,
+.tabs-container,
+.tab:not(.tab-title),
+.modal-header {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
