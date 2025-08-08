@@ -59,15 +59,12 @@ class NoteHub {
         this.tabsList = document.getElementById('tabs-list');
         this.editorContainer = document.getElementById('editor-container');
         this.newTabBtn = document.getElementById('new-tab-btn');
-        this.scrollLeftBtn = document.getElementById('scroll-left');
-        this.scrollRightBtn = document.getElementById('scroll-right');
         this.themeToggle = document.getElementById('theme-toggle');
         this.exportBtn = document.getElementById('export-btn');
         this.importBtn = document.getElementById('import-btn');
         this.importFile = document.getElementById('import-file');
         // Load theme
         this.loadTheme();
-        this.updateScrollButtons();
     }
 
     /**
@@ -75,17 +72,10 @@ class NoteHub {
      */
     bindEvents() {
         this.newTabBtn.addEventListener('click', () => this.createNewTab());
-        this.scrollLeftBtn.addEventListener('click', () => this.scrollTabs('left'));
-        this.scrollRightBtn.addEventListener('click', () => this.scrollTabs('right'));
         this.themeToggle.addEventListener('click', () => this.toggleTheme());
         this.exportBtn.addEventListener('click', () => this.exportNotes());
         this.importBtn.addEventListener('click', () => this.importFile.click());
         this.importFile.addEventListener('change', (e) => this.importNotes(e));
-
-        // Add scroll event listener to update scroll buttons
-        this.tabsList.addEventListener('scroll', () => {
-            this.updateScrollButtons();
-        });
 
         // Add dragover and drop events to tabs list for end-of-list dropping
         this.tabsList.addEventListener('dragover', (e) => {
@@ -109,30 +99,6 @@ class NoteHub {
                 }
             }
         });
-    }
-
-    /**
-     * Scroll tabs container
-     * @param {string} direction - 'left' or 'right'
-     */
-    scrollTabs(direction) {
-        const scrollAmount = 200;
-        if (direction === 'left') {
-            this.tabsList.scrollLeft -= scrollAmount;
-        } else {
-            this.tabsList.scrollLeft += scrollAmount;
-        }
-    }
-
-    /**
-     * Update scroll button visibility
-     */
-    updateScrollButtons() {
-        const canScrollLeft = this.tabsList.scrollLeft > 0;
-        const canScrollRight = this.tabsList.scrollLeft < (this.tabsList.scrollWidth - this.tabsList.clientWidth);
-        
-        this.scrollLeftBtn.style.display = canScrollLeft ? 'block' : 'none';
-        this.scrollRightBtn.style.display = canScrollRight ? 'block' : 'none';
     }
 
     /**
@@ -198,7 +164,6 @@ class NoteHub {
         this.saveMetadata();
         
         setTimeout(() => {
-            this.updateScrollButtons();
             this.scrollToActiveTab();
         }, 10);
     }
@@ -340,8 +305,50 @@ class NoteHub {
      * @param {number} tabId - Tab ID to close
      */
     closeTab(tabId) {
-        if (this.tabs.length <= 1) return;
+        const tabToClose = this.tabs.find(t => t.id === tabId);
+        if (!tabToClose) return;
 
+        // If this is the only tab and it's an empty "Note 1", don't allow closing
+        if (this.tabs.length === 1) {
+            const isEmptyNote1 = tabToClose.title === 'Note 1' && (!tabToClose.content || tabToClose.content.trim() === '');
+            if (isEmptyNote1) {
+                return; // Don't close empty "Note 1" if it's the only tab
+            }
+            
+            // Show confirmation for closing the last tab
+            const hasContent = tabToClose.content && tabToClose.content.trim() !== '';
+            const confirmMessage = hasContent 
+                ? 'This tab contains data that will be deleted. Are you sure you want to close it? A new tab will be created.'
+                : 'Are you sure you want to close this tab? A new tab will be created.';
+            
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+            
+            // Close the tab and create a new one
+            this.performTabClose(tabId);
+            this.createNewTab();
+            return;
+        }
+
+        // Check if tab has content and show confirmation
+        const hasContent = tabToClose.content && tabToClose.content.trim() !== '';
+        if (hasContent) {
+            const confirmMessage = 'This tab contains data that will be deleted. Are you sure you want to close it?';
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+        }
+
+        // Perform the actual tab closing
+        this.performTabClose(tabId);
+    }
+
+    /**
+     * Perform the actual tab closing operations
+     * @param {number} tabId - Tab ID to close
+     */
+    performTabClose(tabId) {
         const tabIndex = this.tabs.findIndex(t => t.id === tabId);
         if (tabIndex === -1) return;
 
@@ -355,8 +362,8 @@ class NoteHub {
         // Remove from data array
         this.tabs.splice(tabIndex, 1);
 
-        // Switch to another tab if this was the active one
-        if (this.activeTabId === tabId) {
+        // Switch to another tab if this was the active one and there are tabs remaining
+        if (this.activeTabId === tabId && this.tabs.length > 0) {
             const newActiveIndex = Math.min(tabIndex, this.tabs.length - 1);
             this.switchToTab(this.tabs[newActiveIndex].id);
             this.scrollToActiveTab();
@@ -364,10 +371,6 @@ class NoteHub {
 
         // Save updated metadata
         this.saveMetadata();
-        
-        setTimeout(() => {
-            this.updateScrollButtons();
-        }, 10);
     }
 
     /**
@@ -576,11 +579,6 @@ class NoteHub {
                 if (this.activeTabId && this.tabs.find(t => t.id === this.activeTabId)) {
                     this.switchToTab(this.activeTabId);
                 }
-
-                setTimeout(() => {
-                    this.updateScrollButtons();
-                    this.scrollToActiveTab();
-                }, 10);
             }
         } catch (error) {
             console.error('Error loading data:', error);
@@ -700,7 +698,6 @@ class NoteHub {
                     }
                     
                     setTimeout(() => {
-                        this.updateScrollButtons();
                         this.scrollToActiveTab();
                     }, 10);
                     
