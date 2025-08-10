@@ -19,30 +19,15 @@ class HelpSystem {
     /**
      * Bind help modal and button events
      */
-    bindEvents() {
-        const helpBtn = document.getElementById('help-btn');
-        const modal = document.getElementById('help-modal');
-        const closeBtn = document.getElementById('help-modal-close');
-
-        // Help button click event
-        if (helpBtn) {
-            helpBtn.addEventListener('click', () => this.openHelpModal());
-        }
-
-        // Close events
-        if (closeBtn) {
-            closeBtn.addEventListener('click', () => this.closeHelpModal());
-        }
-        
-        if (modal) {
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    this.closeHelpModal();
-                }
-            });
-        }
-
-        // Close on Escape key
+    bindEvents() {   
+        document.getElementById('help-btn').addEventListener('click', () => this.openHelpModal());
+        document.getElementById('help-modal-close').addEventListener('click', () => this.closeHelpModal());
+        document.getElementById('help-modal').addEventListener('click', (e) => {
+            if (e.target === modal) {
+                this.closeHelpModal();
+            }
+        });
+      // Close on Escape key
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && modal && modal.style.display === 'flex') {
                 this.closeHelpModal();
@@ -54,37 +39,23 @@ class HelpSystem {
      * Update shortcut texts for current platform
      */
     updateShortcutTexts() {
-        const renameShortcut = document.getElementById('rename-shortcut');
-        const searchShortcut = document.getElementById('search-shortcut');
-        
-        if (renameShortcut) {
-            renameShortcut.textContent = this.keyboardShortcuts.getShortcutText('R');
-        }
-        
-        if (searchShortcut) {
-            searchShortcut.textContent = this.keyboardShortcuts.getShortcutText('Q');
-        }
+        document.getElementById('rename-shortcut').textContent = this.keyboardShortcuts.getShortcutText('R');
+        document.getElementById('search-shortcut').textContent = this.keyboardShortcuts.getShortcutText('Q');
     }
 
     /**
      * Open help modal
      */
-    openHelpModal() {
-        const modal = document.getElementById('help-modal');
-        if (modal) {
-            this.populateShortcuts();
-            modal.style.display = 'flex';
-        }
+    openHelpModal() {       
+        this.populateShortcuts();
+        document.getElementById('help-modal').style.display = 'flex';      
     }
 
     /**
      * Close help modal
      */
     closeHelpModal() {
-        const modal = document.getElementById('help-modal');
-        if (modal) {
-            modal.style.display = 'none';
-        }
+        document.getElementById('help-modal').style.display = 'none';
     }
 
     /**

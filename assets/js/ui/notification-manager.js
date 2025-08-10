@@ -5,8 +5,8 @@
  */
 class NotificationManager {
     constructor() {
-        this.notifications = []; // Track active notifications
-        this.notificationCounter = 0; // Unique ID counter for notifications
+        this.notifications = [];
+        this.notificationCounter = 0;
         this.init();
     }
 
@@ -22,15 +22,13 @@ class NotificationManager {
 
     /**
      * Calculate notification position based on existing notifications
-     * @returns {number} Top position in pixels
      */
     calculateNotificationPosition() {
-        let topPosition = 20; // Base position from top
+        let topPosition = 20;
         
-        // Add space for each existing notification
         this.notifications.forEach(notification => {
             if (notification.parentNode) {
-                topPosition += notification.offsetHeight + 12; // 12px gap between notifications
+                topPosition += notification.offsetHeight + 12;
             }
         });
         
@@ -53,13 +51,11 @@ class NotificationManager {
 
     /**
      * Remove notification from tracking array
-     * @param {HTMLElement} notification - Notification element to remove
      */
     removeNotificationFromTracking(notification) {
         const index = this.notifications.indexOf(notification);
         if (index > -1) {
             this.notifications.splice(index, 1);
-            // Update positions of remaining notifications
             this.updateNotificationPositions();
         }
     }
@@ -69,9 +65,6 @@ class NotificationManager {
      * @param {string} message - Notification message
      * @param {string} type - Notification type ('success', 'error', 'info', 'warning')
      * @param {Object} options - Optional configuration
-     * @param {number} options.duration - Custom duration in milliseconds
-     * @param {boolean} options.clickToDismiss - Whether clicking dismisses notification (default: true)
-     * @param {boolean} options.autoHide - Whether to auto-hide notification (default: true)
      * @returns {HTMLElement} The notification element
      */
     show(message, type = 'info', options = {}) {
@@ -122,28 +115,19 @@ class NotificationManager {
 
     /**
      * Get default duration based on notification type
-     * @param {string} type - Notification type
-     * @returns {number} Duration in milliseconds
      */
     getDefaultDuration(type) {
-        switch (type) {
-            case 'error':
-                return 6000; // Errors stay longer
-            case 'warning':
-                return 5000; // Warnings stay a bit longer
-            case 'success':
-                return 4000; // Success messages
-            case 'info':
-            default:
-                return 3500; // Info messages
-        }
+        const durations = {
+            error: 6000,
+            warning: 5000,
+            success: 4000,
+            info: 3500
+        };
+        return durations[type] || durations.info;
     }
 
     /**
      * Apply styles to notification element
-     * @param {HTMLElement} notification - Notification element
-     * @param {string} type - Notification type
-     * @param {number} topPosition - Top position in pixels
      */
     applyNotificationStyles(notification, type, topPosition) {
         // Determine background color based on type
@@ -170,7 +154,7 @@ class NotificationManager {
             maxWidth: isMobile ? 'calc(100vw - 20px - var(--safe-area-inset-left) - var(--safe-area-inset-right))' : '320px',
             backgroundColor: colors[type] || colors.info,
             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-            transform: 'translateX(100%)', // Start off-screen
+            transform: 'translateX(100%)',
             opacity: '0',
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             cursor: 'pointer',
@@ -182,7 +166,6 @@ class NotificationManager {
 
     /**
      * Dismiss a specific notification with animation
-     * @param {HTMLElement} notification - Notification element to dismiss
      */
     dismiss(notification) {
         if (!notification || !notification.parentNode) return;
@@ -203,7 +186,6 @@ class NotificationManager {
      * Dismiss all notifications
      */
     dismissAll() {
-        // Create a copy of the array to avoid issues during iteration
         const notificationsToRemove = [...this.notifications];
         notificationsToRemove.forEach(notification => {
             this.dismiss(notification);
@@ -211,13 +193,13 @@ class NotificationManager {
     }
 
     /**
-     * Update notification styles on window resize (for mobile responsiveness)
+     * Update notification styles on window resize
      */
     updateNotificationStyles() {
+        const isMobile = window.innerWidth <= 768;
+        
         this.notifications.forEach(notification => {
             if (notification.parentNode) {
-                const isMobile = window.innerWidth <= 768;
-                
                 Object.assign(notification.style, {
                     left: isMobile ? `calc(10px + var(--safe-area-inset-left))` : 'auto',
                     right: isMobile ? `calc(10px + var(--safe-area-inset-right))` : `calc(20px + var(--safe-area-inset-right))`,
@@ -248,7 +230,6 @@ class NotificationManager {
 
     /**
      * Get the number of active notifications
-     * @returns {number} Number of active notifications
      */
     getActiveCount() {
         return this.notifications.filter(n => n.parentNode).length;
@@ -256,7 +237,6 @@ class NotificationManager {
 
     /**
      * Check if there are any active notifications
-     * @returns {boolean} True if there are active notifications
      */
     hasActiveNotifications() {
         return this.getActiveCount() > 0;

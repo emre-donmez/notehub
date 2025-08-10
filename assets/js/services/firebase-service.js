@@ -13,8 +13,7 @@ class FirebaseService {
     }
 
     /**
-     * Initialize Firebase with direct configuration
-     * @returns {Promise<boolean>} True if initialized successfully
+     * Initialize Firebase
      */
     async initialize() {
         if (this.isInitialized) {
@@ -22,19 +21,16 @@ class FirebaseService {
         }
 
         try {
-            // Check if Firebase SDK is loaded
             if (typeof firebase === 'undefined') {
                 console.error('Firebase SDK not loaded');
                 return false;
             }
 
-            // Check if Firebase config is available
             if (typeof firebaseConfig === 'undefined') {
                 console.error('Firebase configuration not found');
                 return false;
             }
 
-            // Initialize Firebase
             this.app = firebase.initializeApp(firebaseConfig);
             this.db = firebase.firestore();
             this.auth = firebase.auth();
@@ -56,7 +52,6 @@ class FirebaseService {
 
     /**
      * Add authentication state change listener
-     * @param {Function} callback - Callback function to execute on auth state change
      */
     onAuthStateChange(callback) {
         this.authStateChangeCallbacks.push(callback);
@@ -64,7 +59,6 @@ class FirebaseService {
 
     /**
      * Sign in with Google
-     * @returns {Promise<Object|null>} User object or null if failed
      */
     async signInWithGoogle() {
         if (!this.auth) return null;
@@ -81,7 +75,6 @@ class FirebaseService {
 
     /**
      * Sign out current user
-     * @returns {Promise<void>}
      */
     async signOut() {
         if (!this.auth) return;
@@ -96,8 +89,6 @@ class FirebaseService {
 
     /**
      * Save user profile (metadata) to Firestore
-     * @param {Object} profileData - Profile data with activeTabId, tabCounter, noteOrder
-     * @returns {Promise<boolean>} True if saved successfully
      */
     async saveUserProfile(profileData) {
         if (!this.db || !this.user) {
@@ -121,7 +112,6 @@ class FirebaseService {
 
     /**
      * Load user profile (metadata) from Firestore
-     * @returns {Promise<Object|null>} Profile data or null if not found
      */
     async loadUserProfile() {
         if (!this.db || !this.user) {
@@ -133,7 +123,6 @@ class FirebaseService {
             
             if (doc.exists) {
                 const data = doc.data();
-                // Remove Firebase-specific fields
                 delete data.lastModified;
                 delete data.userId;
                 return data;
@@ -147,8 +136,6 @@ class FirebaseService {
 
     /**
      * Save individual note to Firestore
-     * @param {Object} note - Note object with id, title, content
-     * @returns {Promise<boolean>}
      */
     async saveNote(note) {
         if (!this.db || !this.user) {
@@ -174,8 +161,6 @@ class FirebaseService {
 
     /**
      * Load individual note from Firestore
-     * @param {number} noteId - Note ID to load
-     * @returns {Promise<Object|null>} Note data or null if not found
      */
     async loadNote(noteId) {
         if (!this.db || !this.user) {
@@ -187,7 +172,6 @@ class FirebaseService {
             
             if (doc.exists) {
                 const data = doc.data();
-                // Remove Firebase-specific fields
                 delete data.lastModified;
                 delete data.userId;
                 return data;
@@ -201,7 +185,6 @@ class FirebaseService {
 
     /**
      * Load all user notes from Firestore
-     * @returns {Promise<Array>} Array of note objects
      */
     async loadAllUserNotes() {
         if (!this.db || !this.user) {
@@ -216,7 +199,6 @@ class FirebaseService {
             const notes = [];
             querySnapshot.forEach((doc) => {
                 const data = doc.data();
-                // Remove Firebase-specific fields
                 delete data.lastModified;
                 delete data.userId;
                 notes.push(data);
@@ -231,8 +213,6 @@ class FirebaseService {
 
     /**
      * Delete note from Firestore
-     * @param {number} noteId - Note ID to delete
-     * @returns {Promise<boolean>} True if deleted successfully
      */
     async deleteNote(noteId) {
         if (!this.db || !this.user) {
@@ -249,9 +229,7 @@ class FirebaseService {
     }
 
     /**
-     * Save user notes using new document-based structure
-     * @param {Object} data - Notes data to save (backwards compatibility)
-     * @returns {Promise<boolean>} True if saved successfully
+     * Save user notes using document-based structure
      */
     async saveUserNotes(data) {
         if (!this.db || !this.user) {
@@ -282,8 +260,7 @@ class FirebaseService {
     }
 
     /**
-     * Load user notes using new document-based structure
-     * @returns {Promise<Object|null>} Notes data in old format (backwards compatibility)
+     * Load user notes using document-based structure
      */
     async loadUserNotes() {
         if (!this.db || !this.user) {
@@ -308,7 +285,7 @@ class FirebaseService {
                     .map(id => allNotes.find(note => note.id === id))
                     .filter(note => note !== undefined);
                 
-                // Add any notes not in the order (in case of inconsistency)
+                // Add any notes not in the order
                 const orderedIds = new Set(profile.noteOrder);
                 const unorderedNotes = allNotes.filter(note => !orderedIds.has(note.id));
                 sortedNotes.push(...unorderedNotes);
@@ -327,7 +304,6 @@ class FirebaseService {
 
     /**
      * Check if user is authenticated
-     * @returns {boolean} True if user is authenticated
      */
     isAuthenticated() {
         return this.user !== null;
@@ -335,7 +311,6 @@ class FirebaseService {
 
     /**
      * Get current user information
-     * @returns {Object|null} User object or null
      */
     getCurrentUser() {
         return this.user;

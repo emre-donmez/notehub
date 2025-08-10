@@ -44,7 +44,6 @@ class CloudSyncUI {
             }, 100);
             
             this.initialized = true;
-            console.log('Cloud sync UI initialized successfully');
             return true;
         } catch (error) {
             console.error('Failed to initialize cloud sync UI:', error);
@@ -82,17 +81,11 @@ class CloudSyncUI {
      * Update initial UI state
      */
     updateInitialUI() {
-        if (typeof storageService !== 'undefined') {
-            const status = storageService.getStorageStatus();
-            this.updateUI(status);
-        } else {
-            // If storage service not ready, show basic local storage state
-            this.updateUI({
-                storageType: 'local',
-                syncEnabled: false,
-                isAuthenticated: false
-            });
-        }
+        const status = (typeof storageService !== 'undefined') 
+            ? storageService.getStorageStatus()
+            : { storageType: 'local', syncEnabled: false, isAuthenticated: false };
+        
+        this.updateUI(status);
     }
 
     /**
@@ -206,7 +199,6 @@ class CloudSyncUI {
 
     /**
      * Update UI for authenticated user
-     * @param {Object} user - Firebase user object
      */
     updateAuthenticatedUI(user) {
         const signedOut = document.getElementById('auth-signed-out');
@@ -248,7 +240,6 @@ class CloudSyncUI {
 
     /**
      * Update last sync time display
-     * @param {string} lastSyncTime - ISO timestamp or null
      */
     updateLastSyncTime(lastSyncTime) {
         const element = document.getElementById('last-sync-time');
@@ -257,12 +248,11 @@ class CloudSyncUI {
             element.textContent = date.toLocaleString();
         } else {
             element.textContent = 'Never';
-        }        
+        }
     }
 
     /**
      * Update main UI based on sync status
-     * @param {Object} status - Sync status object
      */
     updateUI(status) {
         // Update sync button icon and title based on storage status
@@ -274,19 +264,36 @@ class CloudSyncUI {
             }
 
             // Update icon and title based on current status
+            const iconConfig = {
+                cloudAuthenticated: {
+                    src: 'assets/icons/cloud.svg',
+                    alt: 'Cloud Sync',
+                    title: 'Cloud Sync (Connected)'
+                },
+                cloudUnauthenticated: {
+                    src: 'assets/icons/lock.svg',
+                    alt: 'Sign In Required',
+                    title: 'Cloud Sync (Sign In Required)'
+                },
+                local: {
+                    src: 'assets/icons/user.svg',
+                    alt: 'Local Storage',
+                    title: 'Cloud Sync (Local Storage)'
+                }
+            };
+
+            let config;
             if (status.storageType === 'cloud' && status.isAuthenticated) {
-                this.syncIcon.src = 'assets/icons/cloud.svg';
-                this.syncIcon.alt = 'Cloud Sync';
-                this.syncButton.title = 'Cloud Sync (Connected)';
+                config = iconConfig.cloudAuthenticated;
             } else if (status.storageType === 'cloud' && !status.isAuthenticated) {
-                this.syncIcon.src = 'assets/icons/lock.svg';
-                this.syncIcon.alt = 'Sign In Required';
-                this.syncButton.title = 'Cloud Sync (Sign In Required)';
+                config = iconConfig.cloudUnauthenticated;
             } else {
-                this.syncIcon.src = 'assets/icons/user.svg';
-                this.syncIcon.alt = 'Local Storage';
-                this.syncButton.title = 'Cloud Sync (Local Storage)';
+                config = iconConfig.local;
             }
+
+            this.syncIcon.src = config.src;
+            this.syncIcon.alt = config.alt;
+            this.syncButton.title = config.title;
         }
 
         // Update modal if open
@@ -297,13 +304,12 @@ class CloudSyncUI {
 
     /**
      * Handle storage type change
-     * @param {string} type - New storage type
      */
     async handleStorageTypeChange(type) {
         try {
             if (typeof storageService !== 'undefined' && storageService.setStorageType) {
                 // Show loading notification
-                this.showNotification('Changing storage type...', 'info');
+                notificationManager.info('Changing storage type...');
                 
                 const result = await storageService.setStorageType(type);
                 
@@ -315,7 +321,7 @@ class CloudSyncUI {
                         this.closeSyncModal();
                         
                         // Show notification before reload
-                        this.showNotification('Storage type changed! Loading notes...', 'success');
+                        notificationManager.success('Storage type changed! Loading notes...');
                         
                         // Reload the page to load data from the new storage
                         setTimeout(() => {
@@ -326,7 +332,7 @@ class CloudSyncUI {
             }
         } catch (error) {
             console.error('Failed to change storage type:', error);
-            this.showNotification('Failed to change storage type', 'error');
+            notificationManager.error('Failed to change storage type');
         }
     }
 
@@ -337,14 +343,11 @@ class CloudSyncUI {
         try {
             if (typeof firebaseService !== 'undefined' && firebaseService.signInWithGoogle) {
                 await firebaseService.signInWithGoogle();
-                
-                // Smart sync will be triggered automatically by auth state change
-                // Show a brief notification about successful sign-in
-                this.showNotification('Signed in successfully! Your notes will sync automatically.', 'success');
+                notificationManager.success('Signed in successfully! Your notes will sync automatically.');
             }
         } catch (error) {
             console.error('Google sign-in failed:', error);
-            this.showNotification('Sign-in failed. Please try again.', 'error');
+            notificationManager.error('Sign-in failed. Please try again.');
         }
     }
 
@@ -355,26 +358,11 @@ class CloudSyncUI {
         try {
             if (typeof firebaseService !== 'undefined' && firebaseService.signOut) {
                 await firebaseService.signOut();
-                this.showNotification('Signed out successfully!', 'success');
+                notificationManager.success('Signed out successfully!');
             }
         } catch (error) {
             console.error('Sign-out failed:', error);
-            this.showNotification('Sign-out failed. Please try again.', 'error');
-        }
-    }
-
-    /**
-     * Show notification using the global notification manager
-     * @param {string} message - Notification message
-     * @param {string} type - Notification type ('success', 'error', 'info', 'warning')
-     * @param {Object} options - Optional configuration
-     */
-    showNotification(message, type = 'info', options = {}) {
-        if (typeof notificationManager !== 'undefined') {
-            return notificationManager.show(message, type, options);
-        } else {
-            // Fallback to console log if notification manager is not available
-            console.log(`[${type.toUpperCase()}] ${message}`);
+            notificationManager.error('Sign-out failed. Please try again.');
         }
     }
 }

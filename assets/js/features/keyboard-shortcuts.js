@@ -18,7 +18,6 @@ class KeyboardShortcuts {
     init() {
         this.bindGlobalShortcuts();
         this.bindQuickSelectorEvents();
-        console.log(`Keyboard shortcuts initialized (${this.isMac ? 'Mac' : 'Windows'} mode)`);
     }
 
     /**
@@ -30,7 +29,7 @@ class KeyboardShortcuts {
             const isTyping = e.target.tagName === 'INPUT' && e.target.type === 'text';
             const isEditing = e.target.classList.contains('tab-title-input');
             
-            // Don't interfere with normal typing except for our special shortcuts
+            // Don't interfere with normal typing except for escape key
             if ((isTyping || isEditing) && e.key !== 'Escape') {
                 return;
             }
@@ -47,40 +46,27 @@ class KeyboardShortcuts {
      * @param {KeyboardEvent} e - Keyboard event
      */
     handleModifierShortcuts(e) {
-        switch (e.key.toLowerCase()) {
-            case 't':
-                e.preventDefault();
-                this.noteHub.createNewTab();
-                break;
-                
-            case 'w':
-                e.preventDefault();
+        const shortcuts = {
+            't': () => this.noteHub.createNewTab(),
+            'w': () => {
                 if (this.noteHub.activeTabId) {
                     this.noteHub.closeTab(this.noteHub.activeTabId);
                 }
-                break;
-                
-            case 'r':
-                e.preventDefault();
+            },
+            'r': () => {
                 if (this.noteHub.activeTabId) {
                     this.noteHub.editTabTitle(this.noteHub.activeTabId);
                 }
-                break;
-                
-            case 'q':
-                e.preventDefault();
-                this.toggleQuickSelector();
-                break;
-                
-            case 'arrowleft':
-                e.preventDefault();
-                this.switchToPreviousTab();
-                break;
-                
-            case 'arrowright':
-                e.preventDefault();
-                this.switchToNextTab();
-                break;
+            },
+            'q': () => this.toggleQuickSelector(),
+            'arrowleft': () => this.switchToPreviousTab(),
+            'arrowright': () => this.switchToNextTab()
+        };
+
+        const action = shortcuts[e.key.toLowerCase()];
+        if (action) {
+            e.preventDefault();
+            action();
         }
     }
 
@@ -141,34 +127,35 @@ class KeyboardShortcuts {
             this.updateSelection(selectedIndex);
         });
 
+        const keyActions = {
+            'ArrowDown': (e, tabItems) => {
+                e.preventDefault();
+                selectedIndex = Math.min(selectedIndex + 1, tabItems.length - 1);
+                this.updateSelection(selectedIndex);
+            },
+            'ArrowUp': (e, tabItems) => {
+                e.preventDefault();
+                selectedIndex = Math.max(selectedIndex - 1, 0);
+                this.updateSelection(selectedIndex);
+            },
+            'Enter': (e, tabItems) => {
+                e.preventDefault();
+                if (tabItems[selectedIndex]) {
+                    const tabId = parseInt(tabItems[selectedIndex].dataset.tabId);
+                    this.selectTab(tabId);
+                }
+            },
+            'Escape': (e) => {
+                e.preventDefault();
+                this.closeQuickSelector();
+            }
+        };
+
         searchInput.addEventListener('keydown', (e) => {
             const tabItems = document.querySelectorAll('.quick-tab-item:not([style*="display: none"])');
-            
-            switch (e.key) {
-                case 'ArrowDown':
-                    e.preventDefault();
-                    selectedIndex = Math.min(selectedIndex + 1, tabItems.length - 1);
-                    this.updateSelection(selectedIndex);
-                    break;
-                    
-                case 'ArrowUp':
-                    e.preventDefault();
-                    selectedIndex = Math.max(selectedIndex - 1, 0);
-                    this.updateSelection(selectedIndex);
-                    break;
-                    
-                case 'Enter':
-                    e.preventDefault();
-                    if (tabItems[selectedIndex]) {
-                        const tabId = parseInt(tabItems[selectedIndex].dataset.tabId);
-                        this.selectTab(tabId);
-                    }
-                    break;
-                    
-                case 'Escape':
-                    e.preventDefault();
-                    this.closeQuickSelector();
-                    break;
+            const action = keyActions[e.key];
+            if (action) {
+                action(e, tabItems);
             }
         });
     }
@@ -230,7 +217,7 @@ class KeyboardShortcuts {
         
         tabList.innerHTML = '';
         
-        tabs.forEach((tab, index) => {
+        tabs.forEach((tab) => {
             const tabItem = document.createElement('div');
             tabItem.className = 'quick-tab-item';
             tabItem.dataset.tabId = tab.id;
@@ -272,11 +259,8 @@ class KeyboardShortcuts {
             const title = item.querySelector('.tab-item-title').textContent.toLowerCase();
             const preview = item.querySelector('.tab-item-preview').textContent.toLowerCase();
             
-            if (title.includes(lowerQuery) || preview.includes(lowerQuery)) {
-                item.style.display = 'block';
-            } else {
-                item.style.display = 'none';
-            }
+            const isVisible = title.includes(lowerQuery) || preview.includes(lowerQuery);
+            item.style.display = isVisible ? 'block' : 'none';
         });
     }
 
