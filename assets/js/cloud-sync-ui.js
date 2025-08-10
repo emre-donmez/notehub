@@ -5,38 +5,93 @@
 class CloudSyncUI {
     constructor() {
         this.syncModal = null;
-        this.statusIndicator = null;
         this.syncButton = null;
+        this.syncIcon = null;
         this.isModalOpen = false;
+        this.initialized = false;
     }
 
     /**
      * Initialize cloud sync UI components
      */
     initialize() {
+        if (this.initialized) {
+            this.ensureElementsVisible();
+            return true;
+        }
+        
         try {
             // Get references to existing HTML elements
             this.syncModal = document.getElementById('sync-modal');
-            this.statusIndicator = document.getElementById('sync-status');
             this.syncButton = document.getElementById('sync-btn');
+            this.syncIcon = document.getElementById('sync-icon');
             this.conflictModal = document.getElementById('conflict-modal');
             
             // Check if elements exist
-            if (!this.syncModal || !this.statusIndicator || !this.syncButton) {
+            if (!this.syncModal || !this.syncButton || !this.syncIcon) {
                 console.error('Cloud sync UI elements not found in DOM');
                 return false;
             }
             
-            // Show the elements
-            this.statusIndicator.style.display = 'flex';
-            this.syncButton.style.display = 'flex';
+            // Always show sync button if Firebase is configured
+            this.ensureElementsVisible();
             
             this.bindEvents();
+            
+            // Initialize UI state after a short delay to ensure Firebase is ready
+            setTimeout(() => {
+                this.updateInitialUI();
+            }, 100);
+            
+            this.initialized = true;
             console.log('Cloud sync UI initialized successfully');
             return true;
         } catch (error) {
             console.error('Failed to initialize cloud sync UI:', error);
             return false;
+        }
+    }
+
+    /**
+     * Ensure cloud sync elements are visible
+     */
+    ensureElementsVisible() {
+        if (!this.syncButton) return;
+        
+        // Check if Firebase is enabled
+        const firebaseEnabled = typeof appConfig !== 'undefined' && appConfig.ENABLE_FIREBASE;
+        
+        if (firebaseEnabled) {
+            // Remove inline style attribute completely to clear 'display: none'
+            this.syncButton.removeAttribute('style');
+            
+            // Add force-visible CSS class
+            this.syncButton.classList.add('force-visible');
+            
+            // Also set inline styles as backup
+            this.syncButton.style.setProperty('display', 'inline-flex', 'important');
+            this.syncButton.style.setProperty('visibility', 'visible', 'important');
+            this.syncButton.style.setProperty('opacity', '1', 'important');
+        } else {
+            this.syncButton.classList.remove('force-visible');
+            this.syncButton.style.setProperty('display', 'none', 'important');
+        }
+    }
+
+    /**
+     * Update initial UI state
+     */
+    updateInitialUI() {
+        if (typeof storageService !== 'undefined') {
+            const status = storageService.getStorageStatus();
+            this.updateUI(status);
+        } else {
+            // If storage service not ready, show basic local storage state
+            this.updateUI({
+                storageType: 'local',
+                syncEnabled: false,
+                isAuthenticated: false
+            });
         }
     }
 
@@ -210,24 +265,29 @@ class CloudSyncUI {
      * @param {Object} status - Sync status object
      */
     updateUI(status) {
-        // Update status indicator
-        const statusText = document.querySelector('.sync-status-text');
-        const statusIconContainer = document.getElementById('sync-status-icon');
-        const statusIcon = statusIconContainer ? statusIconContainer.querySelector('img') : null;
+        // Update sync button icon and title based on storage status
+        if (this.syncIcon && this.syncButton) {
+            // Ensure sync button is visible (only if Firebase is enabled)
+            if (typeof appConfig !== 'undefined' && appConfig.ENABLE_FIREBASE) {
+                this.syncButton.style.display = 'inline-flex';
+                this.syncButton.style.visibility = 'visible';
+            }
 
-        if (status.storageType === 'cloud' && status.isAuthenticated) {
-            statusText.textContent = 'Cloud Sync';
-            statusIcon.src = 'assets/icons/cloud.svg';
-            statusIcon.alt = 'Cloud Sync';
-        } else if (status.storageType === 'cloud' && !status.isAuthenticated) {
-            statusText.textContent = 'Sign In Required';
-            statusIcon.src = 'assets/icons/lock.svg';
-            statusIcon.alt = 'Sign In Required';
-        } else {
-            statusText.textContent = 'Local Storage';
-            statusIcon.src = 'assets/icons/user.svg';
-            statusIcon.alt = 'Local Storage';
-        }        
+            // Update icon and title based on current status
+            if (status.storageType === 'cloud' && status.isAuthenticated) {
+                this.syncIcon.src = 'assets/icons/cloud.svg';
+                this.syncIcon.alt = 'Cloud Sync';
+                this.syncButton.title = 'Cloud Sync (Connected)';
+            } else if (status.storageType === 'cloud' && !status.isAuthenticated) {
+                this.syncIcon.src = 'assets/icons/lock.svg';
+                this.syncIcon.alt = 'Sign In Required';
+                this.syncButton.title = 'Cloud Sync (Sign In Required)';
+            } else {
+                this.syncIcon.src = 'assets/icons/user.svg';
+                this.syncIcon.alt = 'Local Storage';
+                this.syncButton.title = 'Cloud Sync (Local Storage)';
+            }
+        }
 
         // Update modal if open
         if (this.isModalOpen) {
@@ -242,8 +302,27 @@ class CloudSyncUI {
     async handleStorageTypeChange(type) {
         try {
             if (typeof storageService !== 'undefined' && storageService.setStorageType) {
-                await storageService.setStorageType(type);
-                this.updateModalContent();
+                // Show loading notification
+                this.showNotification('Changing storage type...', 'info');
+                
+                const result = await storageService.setStorageType(type);
+                
+                if (result.success) {
+                    this.updateModalContent();
+                    
+                    // If reload is needed, close modal and reload after a short delay
+                    if (result.shouldReload) {
+                        this.closeSyncModal();
+                        
+                        // Show notification before reload
+                        this.showNotification('Storage type changed! Loading notes...', 'success');
+                        
+                        // Reload the page to load data from the new storage
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1500);
+                    }
+                }
             }
         } catch (error) {
             console.error('Failed to change storage type:', error);

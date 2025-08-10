@@ -1030,22 +1030,6 @@ input[type="file"] {
         height: 16px;
     }
 
-    .sync-status {
-        font-size: 10px;
-        padding: 3px 6px;
-        margin-right: 4px;
-        min-width: auto;
-    }
-
-    .sync-status-text {
-        display: none; /* Hide text on mobile to save space */
-    }
-
-    .sync-status-icon img {
-        width: 12px;
-        height: 12px;
-    }
-
     /* Hide export and import buttons on mobile to save space */
     #export-btn,
     #import-btn {
@@ -1191,16 +1175,6 @@ input[type="file"] {
     .github-svg {
         width: 16px; 
         height: 16px; 
-    }
-
-    .sync-status {
-        padding: 2px 4px;
-        margin-right: 2px;
-    }
-
-    .sync-status-icon img {
-        width: 10px;
-        height: 10px;
     }
 
     .tab {
@@ -1668,4 +1642,11 @@ kbd {
         width: 14px;
         height: 14px;
     }
+}
+
+/* Cloud sync UI force visibility */
+#sync-btn.force-visible {
+    display: inline-flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }

@@ -10,6 +10,9 @@ class StorageService {
         this.lastSyncTime = null;
         this.syncStatusCallbacks = [];
         this.cache = new Map(); // Note cache for better performance
+        this.isPageVisible = true;
+        this.lastFocusTime = Date.now();
+        this.isPageLoad = false; // Flag to track if this is initial page load
     }
 
     /**
@@ -31,6 +34,127 @@ class StorageService {
                 this.handleAuthStateChange(user);
             });
         }
+
+        console.log(`Storage service initialized with type: ${this.storageType}`);
+
+        // Set up page visibility and focus listeners for cloud data refresh
+        this.setupPageVisibilityListeners();
+        
+        // Check for page refresh and handle it
+        this.handlePageRefresh();
+    }
+
+    /**
+     * Set up page visibility and window focus listeners
+     * This ensures cloud data is refreshed when user returns to the tab
+     */
+    setupPageVisibilityListeners() {
+        // Handle page visibility changes
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                // Page became visible
+                this.isPageVisible = true;
+                this.handlePageBecameVisible();
+            } else {
+                // Page became hidden
+                this.isPageVisible = false;
+            }
+        });
+
+        // Handle window focus events (for cases where visibilitychange doesn't fire)
+        window.addEventListener('focus', () => {
+            this.handlePageBecameVisible();
+        });
+
+        // Track when page loses focus
+        window.addEventListener('blur', () => {
+            this.lastFocusTime = Date.now();
+        });
+    }
+
+    /**
+     * Handle when page becomes visible or focused
+     * Refresh cloud data if using cloud storage and enough time has passed
+     */
+    async handlePageBecameVisible() {
+        // Only refresh if using cloud storage, authenticated, and enough time has passed
+        if (this.storageType === 'cloud' && 
+            this.syncEnabled && 
+            firebaseService.isAuthenticated()) {
+            
+            const timeSinceLastFocus = Date.now() - this.lastFocusTime;
+            const shouldRefresh = timeSinceLastFocus > 5000; // 5 seconds threshold
+            
+            if (shouldRefresh) {
+                console.log('Page became visible, refreshing cloud data...');
+                await this.refreshDataFromCloud();
+            }
+        }
+        
+        this.lastFocusTime = Date.now();
+    }
+
+    /**
+     * Refresh data from cloud and notify main app
+     */
+    async refreshDataFromCloud() {
+        try {
+            console.log('Refreshing data from cloud...');
+            
+            // Load fresh data from cloud
+            const cloudData = await firebaseService.loadUserNotes();
+            
+            if (cloudData) {
+                // Cache the fresh data to localStorage for offline access
+                this.saveToLocalStorage(cloudData);
+                
+                // Clear in-memory cache to ensure fresh data
+                this.cache.clear();
+                
+                // Notify the main app that fresh data is available
+                // We'll emit a custom event for this
+                const event = new CustomEvent('cloudDataRefreshed', {
+                    detail: { data: cloudData }
+                });
+                document.dispatchEvent(event);
+                
+                console.log('Cloud data refreshed successfully');
+                return true;
+            } else {
+                console.log('No cloud data found during refresh');
+                return false;
+            }
+        } catch (error) {
+            console.error('Failed to refresh cloud data:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Handle page refresh/reload scenario
+     * This ensures fresh data is loaded when page is reloaded
+     */
+    async handlePageRefresh() {
+        // Set a flag that page was just loaded
+        this.isPageLoad = true;
+        
+        // Check immediately if we should refresh data - no need to wait
+        this.checkForInitialCloudRefresh();
+    }
+
+    /**
+     * Check if we should perform initial cloud refresh on page load
+     */
+    async checkForInitialCloudRefresh() {
+        if (this.storageType === 'cloud' && 
+            this.syncEnabled && 
+            firebaseService.isAuthenticated() && 
+            this.isPageLoad) {
+            
+            console.log('Page loaded with cloud storage, checking for fresh data...');
+            await this.refreshDataFromCloud();
+            this.isPageLoad = false; // Reset flag
+        }
     }
 
     /**
@@ -39,16 +163,22 @@ class StorageService {
      */
     async handleAuthStateChange(user) {
         if (user) {
-            // User signed in - enable cloud sync if needed
+            // User signed in
+            console.log('User authenticated:', user.email);
             if (this.storageType === 'cloud') {
                 const syncEnabled = await this.enableSync();
                 if (syncEnabled) {
-                    // Automatically perform smart sync when user signs in
-                    await this.performSmartSync();
+                    console.log('Cloud sync enabled after authentication');
+                    
+                    // If this is during page load, check for fresh data immediately
+                    if (this.isPageLoad) {
+                        this.checkForInitialCloudRefresh();
                     }
                 }
+            }
         } else {
             // User signed out - disable cloud sync and clear cache
+            console.log('User signed out, disabling cloud sync');
             this.disableSync();
             this.cache.clear();
         }
@@ -123,8 +253,8 @@ class StorageService {
     }
 
     /**
-     * Perform smart sync when user signs in
-     * Automatically handles data conflicts intelligently
+     * Perform smart sync for storage type switching
+     * Only used when switching from local to cloud
      * @returns {Promise<Object>} Sync result
      */
     async performSmartSync() {
@@ -156,25 +286,20 @@ class StorageService {
                     requiresUserInput: false
                 };
             } else if (!hasLocalData && hasCloudData) {
-                // Only cloud has meaningful data - download it automatically
-                this.saveToLocalStorage(cloudData);
+                // Only cloud has meaningful data - no need to do anything since we'll load from cloud
                 syncResult = {
                     success: true,
-                    action: 'download',
-                    message: 'Your cloud notes have been downloaded automatically',
-                    requiresUserInput: false,
-                    shouldReload: true
+                    action: 'none',
+                    message: 'Cloud notes ready to load',
+                    requiresUserInput: false
                 };
-                
-                // Show notification
-                this.showSmartSyncNotification(syncResult.message, 'success');
             } else if (hasLocalData && !hasCloudData) {
                 // Only local has meaningful data - upload it automatically
                 await firebaseService.saveUserNotes(localData);
                 syncResult = {
                     success: true,
                     action: 'upload',
-                    message: 'Your local notes have been uploaded to cloud automatically',
+                    message: 'Your local notes have been uploaded to cloud',
                     requiresUserInput: false
                 };
                 
@@ -190,20 +315,9 @@ class StorageService {
                         message: 'Local and cloud data are already in sync!',
                         requiresUserInput: false
                     };
-                    
-                    // Show notification
-                    this.showSmartSyncNotification(syncResult.message, 'info');
                 } else {
                     // Data is different - ask user what to do
                     syncResult = await this.handleDataConflict(localData, cloudData);
-                    
-                    // Show notification after conflict resolution
-                    if (syncResult.success) {
-                        this.showSmartSyncNotification(syncResult.message, 'success');
-                        
-                        // Set shouldReload flag for any successful conflict resolution
-                        syncResult.shouldReload = true;
-                    }
                 }
             }
 
@@ -320,23 +434,22 @@ class StorageService {
 
         newKeepCloudBtn.addEventListener('click', async () => {
             try {
-                // Download cloud data to local (replace local data)
-                this.saveToLocalStorage(cloudData);
+                // We don't need to download here, just resolve - app will load from cloud
                 this.hideConflictModal();
                 resolve({
                     success: true,
                     action: 'download',
-                    message: 'Cloud notes downloaded. Local data has been replaced.',
+                    message: 'Cloud notes will be loaded.',
                     requiresUserInput: false,
                     shouldReload: true
                 });
             } catch (error) {
-                console.error('Failed to download cloud data:', error);
+                console.error('Failed to process cloud selection:', error);
                 this.hideConflictModal();
                 resolve({
                     success: false,
                     action: 'download',
-                    message: 'Failed to download cloud notes',
+                    message: 'Failed to select cloud notes',
                     requiresUserInput: false
                 });
             }
@@ -346,9 +459,6 @@ class StorageService {
         modal.style.display = 'flex';
 
         // Prevent closing modal without making a choice
-        // Remove the background click event listener that was allowing cancellation
-        // Users must select one of the two options to proceed
-        
         // Add escape key prevention
         const handleKeyPress = (e) => {
             if (e.key === 'Escape') {
@@ -390,12 +500,12 @@ class StorageService {
     }
 
     /**
-     * Set storage type
+     * Set storage type with improved cloud switching logic
      * @param {string} type - Storage type ('local' or 'cloud')
-     * @returns {Promise<void>}
+     * @returns {Promise<Object>} Result object with status and reload flag
      */
     async setStorageType(type) {
-        if (type === this.storageType) return;
+        if (type === this.storageType) return { success: true, shouldReload: false };
 
         const oldType = this.storageType;
         this.storageType = type;
@@ -403,36 +513,46 @@ class StorageService {
         // Save preference
         localStorage.setItem('NoteHub_StorageType', type);
 
+        let result = { success: true, shouldReload: false };
+
         if (type === 'cloud') {
             const syncEnabled = await this.enableSync();
             
-            // If sync was enabled successfully and user is authenticated, perform smart sync
             if (syncEnabled && firebaseService.isAuthenticated()) {
                 try {
-                    // Show notification that sync is starting
-                    this.showSmartSyncNotification('Switching to cloud storage... Syncing your notes.', 'info');
+                    // Show notification that we're switching
+                    this.showSmartSyncNotification('Switching to cloud storage...', 'info');
                     
-                    // Perform smart sync to handle data merging/conflicts
+                    // Perform smart sync only to handle conflicts
                     const syncResult = await this.performSmartSync();
                     
                     if (syncResult.success) {
-                        // Additional notification for successful switch
-                        setTimeout(() => {
+                        if (syncResult.action === 'upload') {
+                            // Local data was uploaded to cloud
                             this.showSmartSyncNotification('Successfully switched to cloud storage!', 'success');
-                        }, 1000);
-                        
-                        // If app needs reload after sync, do it
+                        } else {
+                            // Either no conflict or cloud data selected
+                            this.showSmartSyncNotification('Switched to cloud storage! Loading cloud notes...', 'success');
+                            result.shouldReload = true;
+                        }
+
+                        // If conflict was resolved with reload needed
                         if (syncResult.shouldReload) {
-                            setTimeout(() => window.location.reload(), 2000);
+                            result.shouldReload = true;
                         }
                     }
                 } catch (error) {
                     console.error('Smart sync failed during storage type change:', error);
-                    this.showSmartSyncNotification('Switched to cloud storage, but sync failed. Please try manual sync.', 'warning');
+                    this.showSmartSyncNotification('Switched to cloud storage, but sync failed.', 'warning');
                 }
+            } else if (!firebaseService.isAuthenticated()) {
+                this.showSmartSyncNotification('Cloud storage selected. Please sign in to sync your notes.', 'info');
             }
         } else {
+            // Switching to local
             this.disableSync();
+            this.showSmartSyncNotification('Switched to local storage.', 'info');
+            result.shouldReload = true; // Reload to show local data
         }
 
         // Notify listeners
@@ -445,11 +565,13 @@ class StorageService {
                 oldType: oldType
             });
         });
+
+        return result;
     }
 
     /**
      * Enable cloud sync
-     * @returns {Promise<boolean>} True if sync enabled successfully
+     * @returns {Promise<boolean>}
      */
     async enableSync() {
         if (!firebaseService.isInitialized) {
@@ -458,11 +580,13 @@ class StorageService {
         }
 
         if (!firebaseService.isAuthenticated()) {
-            console.warn('User not authenticated, cannot enable sync');
+            // Don't show warning during initial load - auth might still be loading
+            console.log('Waiting for user authentication to enable cloud sync');
             return false;
         }
 
         this.syncEnabled = true;
+        console.log('Cloud sync enabled successfully');
         return true;
     }
 
@@ -590,21 +714,27 @@ class StorageService {
 
     /**
      * Load data from current storage
+     * Primary method for loading data - respects storage type preference
+     * @param {boolean} forceCloudRefresh - Force refresh from cloud even if local cache exists
      * @returns {Promise<Object|null>} Loaded data or null
      */
-    async loadData() {
+    async loadData(forceCloudRefresh = false) {
         try {
-            if (this.syncEnabled && this.storageType === 'cloud') {
-                // Try to load from cloud first
+            // If cloud storage is selected and sync is enabled, load from cloud
+            if (this.storageType === 'cloud' && this.syncEnabled && firebaseService.isAuthenticated()) {
+                console.log('Loading data from cloud storage');
                 const cloudData = await firebaseService.loadUserNotes();
                 if (cloudData) {
-                    // Also update localStorage with cloud data
+                    // Cache cloud data to localStorage for offline access
                     this.saveToLocalStorage(cloudData);
                     return cloudData;
+                } else {
+                    console.log('No cloud data found, checking local storage');
                 }
             }
 
-            // Fallback to localStorage
+            // Load from localStorage (either as primary source or fallback)
+            console.log('Loading data from local storage');
             return this.loadFromLocalStorage();
         } catch (error) {
             console.error('Failed to load data from cloud, using localStorage:', error);

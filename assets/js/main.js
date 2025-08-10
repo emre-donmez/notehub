@@ -32,8 +32,24 @@ class NoteHub {
             // Initialize cloud sync UI
             cloudSyncUI.initialize();
 
-            // Load existing data
-            await this.loadFromStorage();
+            // Listen for storage type changes and reload data accordingly
+            storageService.onSyncStatusChange((status) => {
+                if (status.changed) {
+                    console.log(`Storage type changed from ${status.oldType} to ${status.storageType}`);
+                    if (!status.shouldReload) {
+                        // No need to wait, reload immediately
+                        this.reloadDataFromCurrentStorage();
+                    }
+                }
+            });
+
+            // Listen for cloud data refresh events
+            document.addEventListener('cloudDataRefreshed', (event) => {
+                this.handleCloudDataRefreshed(event.detail.data);
+            });
+
+            // Load existing data - always force refresh from cloud on page load
+            await this.loadFromStorage(true);
             
             // Bind events
             this.bindEvents();
@@ -50,7 +66,6 @@ class NoteHub {
             console.log('NoteHub initialized successfully');
         } catch (error) {
             console.error('Failed to initialize NoteHub:', error);
-            // Show error to user but don't fallback to basic mode
             alert('Failed to initialize NoteHub. Please refresh the page.');
         }
     }
@@ -575,14 +590,15 @@ class NoteHub {
 
     /**
      * Load data from storage (cloud or local)
+     * @param {boolean} forceCloudRefresh - Force refresh from cloud storage
      */
-    async loadFromStorage() {
+    async loadFromStorage(forceCloudRefresh = false) {
         try {
             let data = null;
 
             // Use storage service if available
             if (storageService) {
-                data = await storageService.loadData();
+                data = await storageService.loadData(forceCloudRefresh);
             } else {
                 // Fallback to basic localStorage loading
                 const savedData = localStorage.getItem('NoteHub');
@@ -609,6 +625,48 @@ class NoteHub {
         } catch (error) {
             console.error('Error loading data:', error);
             // If loading fails, just continue with empty state
+        }
+    }
+
+    /**
+     * Reload data from current storage (used when storage type changes)
+     */
+    async reloadDataFromCurrentStorage() {
+        if (!this.isInitialized) return;
+
+        try {
+            console.log('Reloading data from current storage...');
+            
+            // Clear existing UI
+            this.tabsList.innerHTML = '';
+            this.editorContainer.innerHTML = '';
+            
+            // Reset data arrays
+            this.tabs = [];
+            this.activeTabId = null;
+
+            // Load fresh data from current storage (force refresh for cloud)
+            await this.loadFromStorage(true);
+
+            // Create first tab if none exist
+            if (this.tabs.length === 0) {
+                this.createNewTab();
+            } else {
+                // Switch to active tab or first tab
+                const activeTab = this.tabs.find(t => t.id === this.activeTabId) || this.tabs[0];
+                if (activeTab) {
+                    this.switchToTab(activeTab.id);
+                }
+            }
+
+            // Scroll to active tab
+            setTimeout(() => {
+                this.scrollToActiveTab();
+            }, 100);
+
+            console.log('Data reloaded successfully');
+        } catch (error) {
+            console.error('Error reloading data:', error);
         }
     }
 
@@ -765,6 +823,96 @@ class NoteHub {
 
         reader.readAsText(file);
         event.target.value = '';
+    }
+
+    /**
+     * Handle cloud data refreshed event
+     * This is called when the storage service detects fresh data from cloud
+     * @param {Object} freshData - Fresh data from cloud
+     */
+    async handleCloudDataRefreshed(freshData) {
+        if (!this.isInitialized || !freshData) return;
+
+        try {
+            console.log('Handling cloud data refresh...');
+            
+            // Check if the fresh data is different from current data
+            const currentData = {
+                tabs: this.tabs,
+                activeTabId: this.activeTabId
+            };
+
+            // Simple comparison - if tab count is different or active tab is different
+            const dataChanged = freshData.tabs.length !== this.tabs.length ||
+                               freshData.activeTabId !== this.activeTabId ||
+                               this.hasContentChanges(freshData.tabs, this.tabs);
+
+            if (dataChanged) {
+                console.log('Fresh cloud data detected, updating UI...');
+                
+                // Show notification that data is being updated
+                if (typeof notificationManager !== 'undefined') {
+                    notificationManager.show('Fresh notes loaded from cloud!', 'info');
+                } else if (typeof cloudSyncUI !== 'undefined') {
+                    cloudSyncUI.showNotification('Fresh notes loaded from cloud!', 'info');
+                }
+                
+                // Clear existing UI
+                this.tabsList.innerHTML = '';
+                this.editorContainer.innerHTML = '';
+                
+                // Update data
+                this.tabs = freshData.tabs || [];
+                this.activeTabId = freshData.activeTabId;
+
+                // Render fresh tabs and editors
+                this.tabs.forEach(tab => {
+                    this.renderTab(tab);
+                    this.renderEditor(tab);
+                });
+
+                // Switch to appropriate tab
+                if (this.tabs.length > 0) {
+                    const activeTab = this.tabs.find(t => t.id === this.activeTabId) || this.tabs[0];
+                    this.switchToTab(activeTab.id);
+                } else {
+                    this.createNewTab();
+                }
+
+                // Scroll to active tab
+                setTimeout(() => {
+                    this.scrollToActiveTab();
+                }, 100);
+            }
+        } catch (error) {
+            console.error('Error handling cloud data refresh:', error);
+        }
+    }
+
+    /**
+     * Check if there are content changes between two tab arrays
+     * @param {Array} newTabs - New tabs array
+     * @param {Array} currentTabs - Current tabs array
+     * @returns {boolean} True if there are content changes
+     */
+    hasContentChanges(newTabs, currentTabs) {
+        if (!newTabs || !currentTabs) return true;
+        
+        // Create maps for easier comparison
+        const newTabsMap = new Map(newTabs.map(tab => [tab.id, tab]));
+        const currentTabsMap = new Map(currentTabs.map(tab => [tab.id, tab]));
+        
+        // Check for content differences
+        for (const [id, newTab] of newTabsMap) {
+            const currentTab = currentTabsMap.get(id);
+            if (!currentTab || 
+                currentTab.title !== newTab.title || 
+                currentTab.content !== newTab.content) {
+                return true;
+            }
+        }
+        
+        return false;
     }
 }
 
