@@ -461,6 +461,12 @@ class NoteHub {
         const themeIcon = document.getElementById('theme-icon');
         themeIcon.src = newTheme === 'dark' ? 'assets/icons/light-mode.svg' : 'assets/icons/dark-mode.svg';
     
+        // Update theme color meta tag for mobile status bar
+        const themeColorMeta = document.getElementById('theme-color-meta');
+        if (themeColorMeta) {
+            themeColorMeta.content = newTheme === 'dark' ? '#1e1e1e' : '#ffffff';
+        }
+    
         localStorage.setItem('theme', newTheme);
     }
 
@@ -480,6 +486,12 @@ class NoteHub {
         const themeIcon = document.getElementById('theme-icon');
         themeIcon.src = savedTheme === 'dark' ? 'assets/icons/light-mode.svg' : 'assets/icons/dark-mode.svg';
         
+        // Update theme color meta tag for mobile status bar
+        const themeColorMeta = document.getElementById('theme-color-meta');
+        if (themeColorMeta) {
+            themeColorMeta.content = savedTheme === 'dark' ? '#1e1e1e' : '#ffffff';
+        }
+        
         // Listen for system theme changes only if no theme is manually saved
         if (!localStorage.getItem('theme') && window.matchMedia) {
             const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -489,6 +501,12 @@ class NoteHub {
                     const newTheme = e.matches ? 'dark' : 'light';
                     document.documentElement.setAttribute('data-theme', newTheme);
                     themeIcon.src = newTheme === 'dark' ? 'assets/icons/light-mode.svg' : 'assets/icons/dark-mode.svg';
+                    
+                    // Update theme color meta tag
+                    const themeColorMeta = document.getElementById('theme-color-meta');
+                    if (themeColorMeta) {
+                        themeColorMeta.content = newTheme === 'dark' ? '#1e1e1e' : '#ffffff';
+                    }
                 }
             });
         }

@@ -11,7 +11,8 @@
     <link rel="apple-touch-icon" sizes="180x180" href="assets/favicon/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-title" content="NoteHub" />
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#ffffff" id="theme-color-meta">
     <link rel="manifest" href="assets/favicon/site.webmanifest" />
 </head>
 <body>
@@ -190,34 +191,15 @@
                 <h2>📝 NoteHub - Help & Shortcuts</h2>
                 <span class="modal-close" id="help-modal-close">&times;</span>
             </div>
-            <div class="modal-body">
-         
-                
-                <div class="help-section">
-                    <h3>⌨️ Keyboard Shortcuts</h3>
-                    <div class="shortcuts-grid" id="shortcuts-grid">
-                        <!-- Shortcuts will be populated here -->
-                    </div>
-                    <div class="shortcuts-note">
-                        <p><small><strong>Note:</strong> On Mac, use <kbd>⌃ Control</kbd> key instead of <kbd>Alt</kbd></small></p>
-                    </div>
-                </div>
-                
+            <div class="modal-body">      
                 <div class="help-section">
                     <h3>💡 Tips & Tricks</h3>
                     <div class="tips-list">
                         <div class="tip-item">
-                            <span class="tip-icon">🏷️</span>
+                            <span class="tip-icon">☁️</span>
                             <div class="tip-content">
-                                <strong>Rename Tabs</strong>
-                                <p>Double-click on any tab title to rename it, or use <kbd id="rename-shortcut">Alt + R</kbd></p>
-                            </div>
-                        </div>
-                        <div class="tip-item">
-                            <span class="tip-icon">🔄</span>
-                            <div class="tip-content">
-                                <strong>Drag & Drop</strong>
-                                <p>Drag tabs to reorder them. You can also drop tabs at the end of the tab list.</p>
+                                <strong>Cloud Sync</strong>
+                                <p>Enable cloud sync to access your notes from any device. Your notes are automatically saved and synchronized.</p>
                             </div>
                         </div>
                         <div class="tip-item">
@@ -228,23 +210,34 @@
                             </div>
                         </div>
                         <div class="tip-item">
-                            <span class="tip-icon">☁️</span>
+                            <span class="tip-icon">🏷️</span>
                             <div class="tip-content">
-                                <strong>Cloud Sync</strong>
-                                <p>Enable cloud sync to access your notes from any device. Your notes are automatically saved and synchronized.</p>
+                                <strong>Rename Tabs</strong>
+                                <p>Double-click on any tab title to rename it, or use <kbd id="rename-shortcut">Alt + R</kbd></p>
                             </div>
                         </div>
                         <div class="tip-item">
-                            <span class="tip-icon">🌙</span>
+                            <span class="tip-icon">📋</span>
                             <div class="tip-content">
-                                <strong>Theme Detection</strong>
-                                <p>NoteHub automatically detects your system's theme preference. You can manually toggle between light and dark themes.</p>
+                                <strong>Multi-tab Interface</strong>
+                                <p>Open multiple notes in separate tabs.</p>
                             </div>
                         </div>
+                        <div class="tip-item">
+                            <span class="tip-icon">🔄</span>
+                            <div class="tip-content">
+                                <strong>Drag & Drop</strong>
+                                <p>Drag tabs to reorder them. You can also drop tabs at the end of the tab list.</p>
+                            </div>
+                        </div>                    
                     </div>
                 </div>
-                
-    
+                <div class="help-section">
+                    <h3>⌨️ Keyboard Shortcuts</h3>
+                    <div class="shortcuts-grid" id="shortcuts-grid">
+                        <!-- Shortcuts will be populated here -->
+                    </div>
+                </div>
             </div>
         </div>
     </div>

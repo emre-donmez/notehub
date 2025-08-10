@@ -326,7 +326,7 @@ class KeyboardShortcuts {
      * @returns {string} Platform-specific shortcut text
      */
     getShortcutText(key) {
-        const prefix = this.isMac ? '⌃' : 'Alt';
+        const prefix = this.isMac ? '⌃ Control' : 'Alt';
         return `${prefix} + ${key}`;
     }
 
@@ -336,10 +336,10 @@ class KeyboardShortcuts {
      */
     getShortcuts() {
         return {
+            'Quick Tab Selector': this.getShortcutText('Q'),
             'New Tab': this.getShortcutText('T'),
             'Close Tab': this.getShortcutText('W'),
             'Rename Tab': this.getShortcutText('R'),
-            'Quick Tab Selector': this.getShortcutText('Q'),
             'Previous Tab': this.getShortcutText('←'),
             'Next Tab': this.getShortcutText('→')
         };

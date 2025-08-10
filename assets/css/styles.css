@@ -11,6 +11,7 @@
     --success-color: #4CAF50;
     --error-color: #f44336;
     --warning-color: #ff9800;
+    --status-bar-bg: #ffffff;
     /* Mobile safe area variables */
     --safe-area-inset-top: env(safe-area-inset-top);
     --safe-area-inset-right: env(safe-area-inset-right);
@@ -31,6 +32,7 @@
     --success-color: #66BB6A;
     --error-color: #EF5350;
     --warning-color: #FFA726;
+    --status-bar-bg: #1e1e1e;
 }
 
 .icon-btn {
@@ -109,6 +111,10 @@ html {
     -moz-text-size-adjust: 100%;
     -ms-text-size-adjust: 100%;
     text-size-adjust: 100%;
+    /* Set background color for status bar area */
+    background-color: var(--status-bar-bg);
+    /* Ensure smooth theme transitions */
+    transition: background-color 0.2s ease;
 }
 
 body {
@@ -125,6 +131,13 @@ body {
     /* Support for safe areas on iOS */
     padding-left: var(--safe-area-inset-left);
     padding-right: var(--safe-area-inset-right);
+    /* Ensure smooth theme transitions */
+    transition: background-color 0.2s ease;
+}
+
+/* Dark theme background for status bar */
+[data-theme="dark"] html {
+    background-color: var(--bg-primary);
 }
 
 .app-container {
@@ -144,7 +157,8 @@ body {
     border-bottom: 1px solid var(--border-color);
     position: relative;
     cursor: auto !important; 
-    flex-shrink: 0; /* Prevent shrinking */
+    flex-shrink: 0; 
+    min-height: 40px; 
 }
 
 .tabs-list {
@@ -286,14 +300,13 @@ body {
     transition: all 0.2s;
     border-left: 1px solid var(--border-color);
     width: 50px;
-    flex-shrink: 0; /* Prevent shrinking */
+    flex-shrink: 0;
+    height: 100%; 
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
 }
-
-    .new-tab-btn:hover {
-        background-color: var(--hover-color);
-        color: var(--text-primary);
-        cursor: pointer !important; 
-    }
 
 /* Content Area */
 .content-area {
@@ -953,17 +966,32 @@ input[type="file"] {
 
 /* Mobile Responsive Design */
 @media (max-width: 768px) {
+    /* Ensure proper viewport on mobile and status bar background */
+    html {
+        background-color: var(--status-bar-bg);
+        min-height: 100vh;
+        min-height: 100dvh;
+        /* Ensure background extends beyond viewport for notch areas */
+        padding-top: env(safe-area-inset-top, 0);
+    }
+    
     body {
         /* Ensure proper viewport on mobile */
         position: fixed;
         width: 100%;
         height: 100vh;
         height: 100dvh;
+        /* Ensure background extends to status bar area */
+        background-color: var(--bg-primary);
+        /* Remove top padding as it's handled by HTML element */
+        padding-top: 0;
     }
 
     .app-container {
         height: 100vh;
         height: 100dvh;
+        /* Ensure background color consistency */
+        background-color: var(--bg-primary);
     }
 
     .control-bar {
@@ -1424,8 +1452,7 @@ input[type="text"], textarea {
     font-weight: 500;
 }
 
-.shortcut-key,
-kbd {
+.shortcut-key, kbd {
     background-color: var(--bg-primary);
     border: 2px solid var(--border-color);
     border-radius: 6px;
@@ -1435,17 +1462,6 @@ kbd {
     font-weight: 600;
     color: var(--text-primary);
     box-shadow: 0 2px 0 var(--border-color);
-}
-
-.shortcuts-note {
-    padding-top: 8px;
-    border-top: 1px solid var(--border-color);
-    text-align: center;
-}
-
-.shortcuts-note small {
-    color: var(--text-secondary);
-    font-size: 12px;
 }
 
 .tips-list {
