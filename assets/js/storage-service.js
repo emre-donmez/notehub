@@ -83,7 +83,7 @@ class StorageService {
             firebaseService.isAuthenticated()) {
             
             const timeSinceLastFocus = Date.now() - this.lastFocusTime;
-            const shouldRefresh = timeSinceLastFocus > 5000; // 5 seconds threshold
+            const shouldRefresh = timeSinceLastFocus > 1000; 
             
             if (shouldRefresh) {
                 console.log('Page became visible, refreshing cloud data...');
