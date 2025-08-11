@@ -23,5 +23,3 @@
 - **Real-time Sync**: Automatic synchronization across all your devices
 - **Manual Controls**: Force sync, upload to cloud, or download from cloud
 - **Offline Support**: Works offline, syncs when connection is restored
-
-**Made with ❤️ by [Emre Dönmez](https://github.com/emre-donmez)**

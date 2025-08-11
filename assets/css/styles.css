@@ -12,7 +12,6 @@
     --error-color: #f44336;
     --warning-color: #ff9800;
     --status-bar-bg: #ffffff;
-    /* Mobile safe area variables */
     --safe-area-inset-top: env(safe-area-inset-top);
     --safe-area-inset-right: env(safe-area-inset-right);
     --safe-area-inset-bottom: env(safe-area-inset-bottom);
@@ -54,7 +53,6 @@
     box-sizing: border-box;
 }
 
-/* Global custom scrollbar styling */
 * {
     scrollbar-width: thin;
     scrollbar-color: var(--border-color) var(--bg-primary);
@@ -88,7 +86,6 @@
     background: var(--bg-primary);
 }
 
-/* Dark theme scrollbar adjustments for global */
 [data-theme="dark"] *::-webkit-scrollbar-track {
     background: var(--bg-primary);
 }
@@ -106,14 +103,11 @@
 }
 
 html {
-    /* Prevent zoom on input focus in iOS */
     -webkit-text-size-adjust: 100%;
     -moz-text-size-adjust: 100%;
     -ms-text-size-adjust: 100%;
     text-size-adjust: 100%;
-    /* Set background color for status bar area */
     background-color: var(--status-bar-bg);
-    /* Ensure smooth theme transitions */
     transition: background-color 0.2s ease;
 }
 
@@ -122,20 +116,16 @@ body {
     background-color: var(--bg-primary);
     color: var(--text-primary);
     height: 100vh;
-    height: 100dvh; /* Use dynamic viewport height */
+    height: 100dvh;
     overflow: hidden;
     cursor: auto !important;
-    /* Prevent iOS Safari bounce */
     position: fixed;
     width: 100%;
-    /* Support for safe areas on iOS */
     padding-left: var(--safe-area-inset-left);
     padding-right: var(--safe-area-inset-right);
-    /* Ensure smooth theme transitions */
     transition: background-color 0.2s ease;
 }
 
-/* Dark theme background for status bar */
 [data-theme="dark"] html {
     background-color: var(--bg-primary);
 }
@@ -144,13 +134,11 @@ body {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    height: 100dvh; /* Use dynamic viewport height */
+    height: 100dvh;
     cursor: auto !important;
-    /* Handle safe areas */
     padding-top: var(--safe-area-inset-top);
 }
 
-/* Tabs Section */
 .tabs-container {
     display: flex;
     background-color: var(--bg-secondary);
@@ -167,48 +155,44 @@ body {
     overflow-x: auto;
     scroll-behavior: smooth;
     cursor: auto !important;
-    
-    /* Custom scrollbar styling for Webkit browsers (Chrome, Safari, Edge) */
     scrollbar-width: thin;
     scrollbar-color: var(--border-color) var(--bg-secondary);
 }
 
-    /* Custom scrollbar for Webkit browsers */
-    .tabs-list::-webkit-scrollbar {
-        height: 6px; /* Thin horizontal scrollbar */
-    }
-    
-    .tabs-list::-webkit-scrollbar-track {
-        background: var(--bg-secondary);
-        border-radius: 3px;
-    }
-    
-    .tabs-list::-webkit-scrollbar-thumb {
-        background: var(--border-color);
-        border-radius: 3px;
-        transition: background-color 0.2s ease;
-    }
-    
-    .tabs-list::-webkit-scrollbar-thumb:hover {
-        background: var(--text-secondary);
-    }
-    
-    .tabs-list::-webkit-scrollbar-thumb:active {
-        background: var(--accent-color);
-    }
+.tabs-list::-webkit-scrollbar {
+    height: 6px;
+}
 
-    /* Dark theme scrollbar adjustments */
-    [data-theme="dark"] .tabs-list::-webkit-scrollbar-track {
-        background: var(--bg-secondary);
-    }
-    
-    [data-theme="dark"] .tabs-list::-webkit-scrollbar-thumb {
-        background: var(--border-color);
-    }
-    
-    [data-theme="dark"] .tabs-list::-webkit-scrollbar-thumb:hover {
-        background: var(--text-secondary);
-    }
+.tabs-list::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+    border-radius: 3px;
+}
+
+.tabs-list::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+    transition: background-color 0.2s ease;
+}
+
+.tabs-list::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+}
+
+.tabs-list::-webkit-scrollbar-thumb:active {
+    background: var(--accent-color);
+}
+
+[data-theme="dark"] .tabs-list::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+}
+
+[data-theme="dark"] .tabs-list::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+}
+
+[data-theme="dark"] .tabs-list::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+}
 
 .tab {
     display: flex;
@@ -222,7 +206,7 @@ body {
     position: relative;
     transition: background-color 0.2s ease;
     user-select: none;
-    flex-shrink: 0; /* Prevent tabs from shrinking */
+    flex-shrink: 0;
 }
 
 .tab:hover {
@@ -267,7 +251,6 @@ body {
     font-family: inherit;
     width: 100%;
     cursor: text !important; 
-    /* Prevent zoom on focus in iOS */
     transform: translateZ(0);
     -webkit-transform: translateZ(0);
 }
@@ -308,12 +291,11 @@ body {
     box-sizing: border-box;
 }
 
-/* Content Area */
 .content-area {
     flex: 1;
     overflow: hidden;
     cursor: auto !important;
-    min-height: 0; /* Allow flex shrinking */
+    min-height: 0;
 }
 
 .editor-container {
@@ -335,41 +317,37 @@ body {
     color: var(--text-primary);
     display: none;
     cursor: text !important;
-    /* Prevent zoom on focus in iOS */
     transform: translateZ(0);
     -webkit-transform: translateZ(0);
-    /* Better textarea handling on mobile */
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
-    
-    /* Custom scrollbar styling for text areas */
     scrollbar-width: thin;
     scrollbar-color: var(--border-color) var(--bg-primary);
 }
 
-    .editor::-webkit-scrollbar {
-        width: 8px;
-    }
-    
-    .editor::-webkit-scrollbar-track {
-        background: var(--bg-primary);
-        border-radius: 4px;
-    }
-    
-    .editor::-webkit-scrollbar-thumb {
-        background: var(--border-color);
-        border-radius: 4px;
-        transition: background-color 0.2s ease;
-    }
-    
-    .editor::-webkit-scrollbar-thumb:hover {
-        background: var(--text-secondary);
-    }
-    
-    .editor::-webkit-scrollbar-thumb:active {
-        background: var(--accent-color);
-    }
+.editor::-webkit-scrollbar {
+    width: 8px;
+}
+
+.editor::-webkit-scrollbar-track {
+    background: var(--bg-primary);
+    border-radius: 4px;
+}
+
+.editor::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.editor::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+}
+
+.editor::-webkit-scrollbar-thumb:active {
+    background: var(--accent-color);
+}
 
 .editor.active {
     display: block;
@@ -381,21 +359,18 @@ body {
     filter: brightness(0) invert(1);
 }
 
-/* Control Bar - Fixed at bottom */
 .control-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 16px;
+    padding: 5px 16px;
     background-color: var(--bg-secondary);
     border-top: 1px solid var(--border-color);
     box-shadow: 0 -2px 4px rgba(0,0,0,0.1);
     cursor: auto !important;
     position: relative;
-    min-height: 48px;
-    flex-shrink: 0; /* Prevent shrinking */
-    /* Add safe area padding for bottom */
-    padding-bottom: calc(8px + var(--safe-area-inset-bottom));
+    flex-shrink: 0;
+    padding-bottom: var(--safe-area-inset-bottom);
 }
 
 .bar-left {
@@ -450,44 +425,6 @@ body {
     z-index: 1;
 }
 
-/* Sync Status Indicator - moved to controls */
-.sync-status {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    color: var(--text-secondary);
-    background-color: var(--bg-secondary);
-    padding: 6px 10px;
-    border-radius: 4px;
-    border: 1px solid var(--border-color);
-    margin-right: 8px;
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-
-.sync-status-text {
-    font-weight: normal;
-    white-space: nowrap;
-}
-
-.sync-status-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.sync-status-icon img {
-    width: 14px;
-    height: 14px;
-    opacity: 0.7;
-}
-
-[data-theme="dark"] .sync-status-icon img {
-    filter: brightness(0) invert(1);
-}
-
 [data-theme="dark"] .control-bar {
     box-shadow: 0 -2px 4px rgba(0,0,0,0.3);
 }
@@ -511,7 +448,6 @@ body {
     color: var(--text-primary);
     transition: background-color 0.2s;
     flex-shrink: 0;
-    /* Improve touch targets on mobile */
     min-width: 44px;
     min-height: 44px;
     display: flex;
@@ -524,18 +460,16 @@ body {
     cursor: pointer !important; 
 }
 
-/* Input elements - prevent zoom on iOS */
 input[type="text"],
 input[type="email"],
 input[type="password"],
 input[type="search"],
 textarea {
-    font-size: 16px; /* Prevent zoom on iOS Safari */
+    font-size: 16px;
     transform: translateZ(0);
     -webkit-transform: translateZ(0);
 }
 
-/* Cloud Sync Modal Styles - Centered */
 .modal {
     position: fixed;
     top: 0;
@@ -547,7 +481,6 @@ textarea {
     justify-content: center;
     align-items: center;
     z-index: 10000;
-    /* Handle safe areas */
     padding: var(--safe-area-inset-top) var(--safe-area-inset-right) var(--safe-area-inset-bottom) var(--safe-area-inset-left);
 }
 
@@ -562,34 +495,32 @@ textarea {
     border: 1px solid var(--border-color);
     transform: scale(0.95);
     animation: modalAppear 0.2s ease-out forwards;
-    
-    /* Custom scrollbar styling for modal */
     scrollbar-width: thin;
     scrollbar-color: var(--border-color) var(--bg-primary);
 }
 
-    .modal-content::-webkit-scrollbar {
-        width: 8px;
-    }
-    
-    .modal-content::-webkit-scrollbar-track {
-        background: var(--bg-primary);
-        border-radius: 4px;
-    }
-    
-    .modal-content::-webkit-scrollbar-thumb {
-        background: var(--border-color);
-        border-radius: 4px;
-        transition: background-color 0.2s ease;
-    }
-    
-    .modal-content::-webkit-scrollbar-thumb:hover {
-        background: var(--text-secondary);
-    }
-    
-    .modal-content::-webkit-scrollbar-thumb:active {
-        background: var(--accent-color);
-    }
+.modal-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+    background: var(--bg-primary);
+    border-radius: 4px;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+}
+
+.modal-content::-webkit-scrollbar-thumb:active {
+    background: var(--accent-color);
+}
 
 @keyframes modalAppear {
     to {
@@ -653,7 +584,6 @@ textarea {
     font-weight: 600;
 }
 
-/* Storage Options */
 .storage-options {
     display: flex;
     flex-direction: column;
@@ -701,7 +631,6 @@ textarea {
     font-size: 12px;
 }
 
-/* Authentication Section */
 .auth-state {
     display: flex;
     flex-direction: column;
@@ -786,7 +715,6 @@ textarea {
     font-size: 12px;
 }
 
-/* Sync Actions */
 .sync-info {
     margin-bottom: 16px;
     padding: 12px;
@@ -805,7 +733,6 @@ textarea {
     font-style: italic;
 }
 
-/* Notifications */
 .notification {
     position: fixed;
     top: 20px;
@@ -821,10 +748,8 @@ textarea {
     animation: slideIn 0.3s ease-out;
     cursor: pointer;
     user-select: none;
-    /* Handle safe areas */
     top: calc(20px + var(--safe-area-inset-top));
     right: calc(20px + var(--safe-area-inset-right));
-    /* Smooth transitions */
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -864,12 +789,10 @@ textarea {
     background-color: var(--warning-color);
 }
 
-/* Input file element - make sure it doesn't interfere */
 input[type="file"] {
     cursor: pointer !important; 
 }
 
-/* Conflict Modal Styles */
 .conflict-info {
     display: flex;
     gap: 16px;
@@ -964,76 +887,68 @@ input[type="file"] {
     transform: translateY(-1px);
 }
 
-/* Mobile Responsive Design */
 @media (max-width: 768px) {
-    /* Ensure proper viewport on mobile and status bar background */
     html {
         background-color: var(--status-bar-bg);
         min-height: 100vh;
         min-height: 100dvh;
-        /* Ensure background extends beyond viewport for notch areas */
         padding-top: env(safe-area-inset-top, 0);
     }
     
     body {
-        /* Ensure proper viewport on mobile */
         position: fixed;
         width: 100%;
         height: 100vh;
         height: 100dvh;
-        /* Ensure background extends to status bar area */
         background-color: var(--bg-primary);
-        /* Remove top padding as it's handled by HTML element */
         padding-top: 0;
     }
 
     .app-container {
         height: 100vh;
         height: 100dvh;
-        /* Ensure background color consistency */
         background-color: var(--bg-primary);
     }
 
     .control-bar {
         padding: 4px 8px;
-        min-height: 50px; /* Larger touch target */
+        min-height: 50px;
         flex-wrap: nowrap;
         gap: 4px;
-        /* Ensure bottom safe area */
         padding-bottom: calc(4px + var(--safe-area-inset-bottom));
         position: relative;
-        z-index: 1000; /* Ensure it stays on top */
+        z-index: 1000;
     }
 
     .bar-left {
         flex: 0 1 auto;
         min-width: 0;
-        max-width: 50%; /* Increased from 35% for better visibility */
+        max-width: 50%;
         order: 1;
     }
 
     .github-link {
-        font-size: 13px; /* Slightly increased from 12px */
-        gap: 6px; /* Increased from 4px */
+        font-size: 13px;
+        gap: 6px;
         min-width: 0;
     }
 
     .github-svg {
-        width: 18px; /* Increased from 16px */
-        height: 18px; /* Increased from 16px */
+        width: 18px;
+        height: 18px;
     }
 
     .repo-link-text {
-        max-width: 120px; /* Increased from 80px */
-        font-size: 12px; /* Increased from 11px */
+        max-width: 120px;
+        font-size: 12px;
     }
 
     .bar-center {
-        font-size: 14px; /* Increased from 13px */
+        font-size: 14px;
         left: 50%;
         transform: translateX(-50%);
         position: absolute;
-        max-width: 25%; /* Reduced from 30% to give more space to left */
+        max-width: 25%;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -1058,13 +973,11 @@ input[type="file"] {
         height: 16px;
     }
 
-    /* Hide export and import buttons on mobile to save space */
     #export-btn,
     #import-btn {
         display: none !important;
     }
 
-    /* Tab improvements for mobile */
     .tab {
         min-width: 80px;
         max-width: 140px;
@@ -1081,19 +994,15 @@ input[type="file"] {
         font-size: 14px;
     }
 
-    /* Editor improvements */
     .editor {
         padding: 12px;
-        font-size: 14px; /* Keep readable on mobile */
-        /* Prevent iOS Safari from zooming on focus */
+        font-size: 14px;
         transform: translateZ(0);
         -webkit-transform: translateZ(0);
     }
 
-    /* Modal improvements for mobile */
     .modal {
         padding: 10px;
-        /* Handle safe areas on mobile */
         padding-top: calc(10px + var(--safe-area-inset-top));
         padding-bottom: calc(10px + var(--safe-area-inset-bottom));
     }
@@ -1118,7 +1027,7 @@ input[type="file"] {
     }
 
     .sync-action-btn {
-        padding: 12px 16px; /* Better touch targets */
+        padding: 12px 16px;
         font-size: 14px;
         min-height: 44px;
     }
@@ -1138,7 +1047,6 @@ input[type="file"] {
         margin: 16px;
     }
 
-    /* Notification improvements for mobile */
     .notification {
         top: calc(10px + var(--safe-area-inset-top));
         right: calc(10px + var(--safe-area-inset-right));
@@ -1146,16 +1054,14 @@ input[type="file"] {
         max-width: none;
         font-size: 13px;
         padding: 12px 16px;
-        /* Disable hover effects on mobile */
         transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .notification:hover {
-        transform: none; /* Disable hover transform on mobile */
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); /* Keep original shadow */
+        transform: none;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
 
-    /* Input improvements to prevent zoom */
     input[type="text"],
     input[type="email"],
     input[type="password"],
@@ -1167,7 +1073,6 @@ input[type="file"] {
     }
 }
 
-/* Extra small mobile devices */
 @media (max-width: 480px) {
     .control-bar {
         padding: 3px 6px;
@@ -1223,11 +1128,10 @@ input[type="file"] {
 
     .editor {
         padding: 8px;
-        font-size: 16px !important; /* Prevent zoom */
+        font-size: 16px !important;
     }
 }
 
-/* Landscape orientation on mobile */
 @media (max-width: 768px) and (orientation: landscape) {
     .control-bar {
         min-height: 44px;
@@ -1246,15 +1150,12 @@ input[type="file"] {
     }
 }
 
-/* iOS specific fixes */
 @supports (-webkit-touch-callout: none) {
     body {
-        /* iOS Safari specific fix */
         -webkit-overflow-scrolling: touch;
     }
     
     .editor {
-        /* Better iOS keyboard handling */
         -webkit-user-select: text;
         user-select: text;
     }
@@ -1262,7 +1163,6 @@ input[type="file"] {
 
 @media (display-mode: standalone) {
     body {
-        /* PWA mode adjustments */
         padding-top: var(--safe-area-inset-top);
     }
 }
@@ -1289,7 +1189,6 @@ input[type="text"], textarea {
     user-select: none;
 }
 
-/* Quick Selector Modal Styles */
 .quick-selector-modal .modal-content {
     max-width: 500px;
     width: 95%;
@@ -1385,7 +1284,6 @@ input[type="text"], textarea {
     font-size: 11px;
 }
 
-/* Help Modal Styles */
 .help-modal-content {
     max-width: 650px;
     width: 95%;
@@ -1558,7 +1456,6 @@ input[type="text"], textarea {
     color: var(--text-primary);
 }
 
-/* Mobile responsive for help and quick selector modals */
 @media (max-width: 768px) {
     .help-modal-content,
     .quick-selector-content {
@@ -1660,7 +1557,6 @@ input[type="text"], textarea {
     }
 }
 
-/* Cloud sync UI force visibility */
 #sync-btn.force-visible {
     display: inline-flex !important;
     visibility: visible !important;
