@@ -33,7 +33,7 @@ class KeyboardShortcuts {
             if ((isTyping || isEditing) && e.key !== 'Escape') {
                 return;
             }
-
+            
             // Handle shortcuts - Ctrl on Mac, Alt on Windows/Linux
             if (e[this.modifierKey] && !e.shiftKey && !(this.isMac ? e.altKey : e.ctrlKey) && !e.metaKey) {
                 this.handleModifierShortcuts(e);
@@ -46,6 +46,13 @@ class KeyboardShortcuts {
      * @param {KeyboardEvent} e - Keyboard event
      */
     handleModifierShortcuts(e) {
+        // Check for number keys (1-9) for direct tab switching
+        if (/^[1-9]$/.test(e.key)) {
+            e.preventDefault();
+            this.switchToTabByNumber(parseInt(e.key));
+            return;
+        }
+
         const shortcuts = {
             't': () => this.noteHub.createNewTab(),
             'w': () => {
@@ -67,6 +74,23 @@ class KeyboardShortcuts {
         if (action) {
             e.preventDefault();
             action();
+        }
+    }
+
+    /**
+     * Switch to tab by number (1-9)
+     * @param {number} tabNumber - Tab number (1-based index)
+     */
+    switchToTabByNumber(tabNumber) {
+        const tabs = this.noteHub.tabs;
+        if (tabNumber < 1 || tabNumber > tabs.length) return;
+
+        const tabIndex = tabNumber - 1; // Convert to 0-based index
+        const targetTab = tabs[tabIndex];
+        
+        if (targetTab) {
+            this.noteHub.switchToTab(targetTab.id);
+            this.noteHub.scrollToActiveTab();
         }
     }
 
@@ -325,7 +349,8 @@ class KeyboardShortcuts {
             'Close Tab': this.getShortcutText('W'),
             'Rename Tab': this.getShortcutText('R'),
             'Previous Tab': this.getShortcutText('←'),
-            'Next Tab': this.getShortcutText('→')
+            'Next Tab': this.getShortcutText('→'),
+            'Go to Tab 1-9': this.getShortcutText('1-9')
         };
     }
 }

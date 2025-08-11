@@ -297,6 +297,33 @@ class NoteHub {
             }
         });
 
+        // Handle Tab key for indentation
+        editor.addEventListener('keydown', (e) => {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                
+                const tabChar = '    '; 
+                
+                if (document.queryCommandSupported && document.queryCommandSupported('insertText')) {
+                    document.execCommand('insertText', false, tabChar);
+                } else {
+                    // Fallback for browsers that don't support insertText
+                    const start = editor.selectionStart;
+                    const end = editor.selectionEnd;
+                    
+                    const newValue = editor.value.substring(0, start) + 
+                                    tabChar + 
+                                    editor.value.substring(end);
+                    
+                    editor.value = newValue;
+                    editor.selectionStart = editor.selectionEnd = start + tabChar.length;
+                    
+                    // Dispatch input event to trigger save
+                    editor.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            }
+        });
+
         this.editorContainer.appendChild(editor);
     }
 
@@ -402,6 +429,7 @@ class NoteHub {
         input.type = 'text';
         input.value = currentTitle;
         input.className = 'tab-title-input';
+        const editorElement = document.querySelector(`.editor[data-tab-id="${tabId}"]`);
 
         const finishEdit = () => {
             const newTitle = input.value.trim() || currentTitle;
@@ -414,6 +442,10 @@ class NoteHub {
                 tab.title = newTitle;
                 this.saveNote(tab);
             }
+
+            if (editorElement) {
+                editorElement.focus();
+            }
         };
 
         input.addEventListener('blur', finishEdit);
@@ -423,6 +455,10 @@ class NoteHub {
             } else if (e.key === 'Escape') {
                 titleElement.style.display = 'inline';
                 input.remove();
+                
+                if (editorElement) {
+                    editorElement.focus();
+                }
             }
         });
 
