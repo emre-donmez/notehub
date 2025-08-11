@@ -6,6 +6,11 @@
 
 ## ✨ Features
 
+### ☁️ Cloud Synchronization
+- **Google Authentication**: Secure sign-in with your Google account
+- **Real-time Sync**: Automatic synchronization across all your devices
+- **Offline Support**: Works offline, syncs when connection is restored
+- 
 ### 📋 Core Note-Taking
 - **Multi-tab Interface**: Organize notes in separate tabs with drag-and-drop reordering
 - **Instant Auto-save**: Your notes are saved automatically as you type
@@ -17,9 +22,3 @@
 - **Cloud Sync**: Optional Firebase integration for cross-device synchronization
 - **Import/Export**: Backup and transfer notes via JSON files
 - **Dual Mode**: Switch between local and cloud storage anytime
-
-### ☁️ Cloud Synchronization
-- **Google Authentication**: Secure sign-in with your Google account
-- **Real-time Sync**: Automatic synchronization across all your devices
-- **Manual Controls**: Force sync, upload to cloud, or download from cloud
-- **Offline Support**: Works offline, syncs when connection is restored
