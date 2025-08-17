@@ -196,6 +196,14 @@ class StorageService {
     }
 
     /**
+     * Update sync time to current timestamp
+     */
+    updateSyncTime() {
+        this.lastSyncTime = new Date().toISOString();
+        localStorage.setItem('NoteHub_LastSyncTime', this.lastSyncTime);
+    }
+
+    /**
      * Perform smart sync for storage type switching
      */
     async performSmartSync() {
@@ -255,8 +263,7 @@ class StorageService {
             }
 
             if (syncResult.success && !syncResult.requiresUserInput) {
-                this.lastSyncTime = new Date().toISOString();
-                localStorage.setItem('NoteHub_LastSyncTime', this.lastSyncTime);
+                this.updateSyncTime();
             }
 
             return syncResult;
@@ -485,43 +492,68 @@ class StorageService {
 
     /**
      * Save data to current storage
+     * Returns: 
+     *  - cloud mode: true if cloud save succeeded, false otherwise
+     *  - local mode: true if local save succeeded, false otherwise
      */
     async saveData(data) {
+        const needCloudSave = this.syncEnabled && this.storageType === 'cloud';
+        let localOk = true;
+        let cloudOk = true;
+
         try {
             this.saveToLocalStorage(data);
-
-            if (this.syncEnabled && this.storageType === 'cloud') {
-                await firebaseService.saveUserNotes(data);
-                this.lastSyncTime = new Date().toISOString();
-                localStorage.setItem('NoteHub_LastSyncTime', this.lastSyncTime);
-            }
-
-            return true;
         } catch (error) {
-            console.error('Failed to save data:', error);
-            return this.storageType === 'local';
+            localOk = false;
+            this.handleSaveError('local', error, { scope: 'data' });
         }
+
+        if (needCloudSave) {
+            try {
+                await firebaseService.saveUserNotes(data);
+                this.updateSyncTime();
+            } catch (error) {
+                cloudOk = false;
+                this.handleSaveError('cloud', error, { scope: 'data' });
+            }
+        }
+
+        return needCloudSave ? cloudOk :localOk;
     }
 
     /**
      * Save individual note to current storage
+     * Returns:
+     *  - cloud mode: true if cloud save succeeded, false otherwise
+     *  - local mode: true if local save succeeded, false otherwise
      */
     async saveNote(note) {
+        const needCloudSave = this.syncEnabled && this.storageType === 'cloud';
+        let localOk = true;
+        let cloudOk = true;
+
         try {
             this.saveNoteToLocalStorage(note);
-
-            if (this.syncEnabled && this.storageType === 'cloud') {
-                await firebaseService.saveNote(note);
-                this.lastSyncTime = new Date().toISOString();
-                localStorage.setItem('NoteHub_LastSyncTime', this.lastSyncTime);
-            }
-
-            this.cache.set(note.id, note);
-            return true;
         } catch (error) {
-            console.error('Failed to save note:', error);
-            return this.storageType === 'local';
+            localOk = false;
+            this.handleSaveError('local', error, { scope: 'note', noteId: note?.id });
         }
+
+        if (needCloudSave) {
+            try {
+                await firebaseService.saveNote(note);
+                this.updateSyncTime();
+            } catch (error) {
+                cloudOk = false;
+                this.handleSaveError('cloud', error, { scope: 'note', noteId: note?.id });
+            }
+        }
+
+        if (note) {
+            this.cache.set(note.id, note);
+        }
+
+        return needCloudSave ? cloudOk : localOk;
     }
 
     /**
@@ -541,9 +573,7 @@ class StorageService {
 
             if (!note) {
                 note = this.loadNoteFromLocalStorage(noteId);
-            }
-
-            if (note) {
+            }else {
                 this.cache.set(noteId, note);
             }
 
@@ -556,23 +586,45 @@ class StorageService {
 
     /**
      * Delete note from current storage
+     * Returns:
+     *  - cloud mode: true if cloud delete succeeded, false otherwise
+     *  - local mode: true if local delete succeeded, false otherwise
      */
     async deleteNote(noteId) {
+        const needCloudDelete = this.syncEnabled && this.storageType === 'cloud';
+        let localOk = true;
+        let cloudOk = true;
+
         try {
             this.deleteNoteFromLocalStorage(noteId);
-
-            if (this.syncEnabled && this.storageType === 'cloud') {
-                await firebaseService.deleteNote(noteId);
-                this.lastSyncTime = new Date().toISOString();
-                localStorage.setItem('NoteHub_LastSyncTime', this.lastSyncTime);
-            }
-
-            this.cache.delete(noteId);
-            return true;
         } catch (error) {
-            console.error('Failed to delete note:', error);
-            return this.storageType === 'local';
+            localOk = false;
+            console.error('Failed to delete note from localStorage:', error);
+            notificationManager.error('Failed to delete note locally.');
+            document.dispatchEvent(new CustomEvent('saveFailed', {
+                detail: { target: 'local', scope: 'delete', noteId, error }
+            }));
         }
+
+        if (needCloudDelete) {
+            try {
+                await firebaseService.deleteNote(noteId);
+                this.updateSyncTime();
+            } catch (error) {
+                cloudOk = false;
+                console.error('Failed to delete note from cloud:', error);
+                notificationManager.error(this.getCloudErrorMessage(error, { scope: 'delete', noteId }));
+                document.dispatchEvent(new CustomEvent('saveFailed', {
+                    detail: { target: 'cloud', scope: 'delete', noteId, error }
+                }));
+            }
+        }
+
+        if (localOk) {
+            this.cache.delete(noteId);
+        }
+
+        return needCloudDelete ? cloudOk : localOk;
     }
 
     /**
@@ -605,11 +657,7 @@ class StorageService {
 
         try {
             const result = await this.performSmartSync();
-            
-            if (result.shouldReload) {
-                setTimeout(() => window.location.reload(), 1000);
-            }
-            
+            window.location.reload();            
             return result;
         } catch (error) {
             console.error('Sync failed:', error);
@@ -747,6 +795,93 @@ class StorageService {
             lastSyncTime: this.lastSyncTime,
             user: firebaseService.getCurrentUser()
         };
+    }
+
+    /**
+     * Detect and handle save errors for local/cloud targets with user feedback
+     */
+    handleSaveError(target, error, context) {
+        const message = this.generateErrorMessage(target, error, context);
+
+        console.error(`Save error (${target})`, { context, error });
+        notificationManager.error(message);
+
+        // Broadcast a failure event for application-level handling
+        document.dispatchEvent(new CustomEvent('saveFailed', {
+            detail: { target, context, error }
+        }));      
+    }
+
+   /**
+    * Generates appropriate error message based on target and error type
+    */
+    generateErrorMessage(target, error) {
+        const DEFAULT_MESSAGE = 'Failed to save.';
+
+        switch (target) {
+            case 'local':
+                return this.getLocalStorageErrorMessage(error);
+            case 'cloud':
+                return this.getCloudErrorMessage(error);
+            default:
+                return DEFAULT_MESSAGE;
+        }
+    }
+
+   /**
+    * Generates error message for local storage failures
+    */
+    getLocalStorageErrorMessage(error) {
+        if (this.isLocalStorageQuotaError(error)) {
+            return 'Local storage is full. Please delete some notes or switch to cloud storage.';
+        }
+        return 'Failed to save locally. Please try again.';
+    }
+
+    /**
+     * Heuristics to detect localStorage quota exceeded across browsers
+     */
+    isLocalStorageQuotaError(error) {
+        if (!error) return false;
+        return (
+            error.name === 'QuotaExceededError' ||
+            error.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+            error.code === 22 ||          // Old WebKit
+            error.code === 1014 ||        // Firefox
+            (typeof error.message === 'string' && /quota|full/i.test(error.message))
+        );
+    }
+
+    /**
+     * Map Firebase/cloud errors to clear user-facing messages
+     */
+    getCloudErrorMessage(error) {
+        const code = (error?.code || error?.name || '').toLowerCase();
+        const msg = (error?.message || '').toLowerCase();
+
+        switch (true) {
+            case code.includes('permission-denied'):
+                return 'You do not have permission to save to cloud.';
+
+            case code.includes('unauthenticated'):
+                return 'Please sign in to save your notes to cloud.';
+
+            case code.includes('quota-exceeded') ||
+                code.includes('resource-exhausted') ||
+                /quota|exceed|exhaust/i.test(msg):
+                return 'Cloud storage quota reached. Please free up space or try again later.';
+
+            case code.includes('unavailable') ||
+                code.includes('deadline-exceeded') ||
+                /network|timeout/i.test(msg):
+                return 'Cloud service is currently unavailable. Check your connection and try again.';
+
+            case code.includes('failed-precondition'):
+                return 'Cloud save failed due to a precondition. Please refresh and try again.';
+
+            default:
+                return 'Failed to save to cloud. Please try again.';
+        }
     }
 }
 
