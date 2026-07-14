@@ -4,6 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>NoteHub</title>
+    <script>
+        (() => {
+            try {
+                let theme = localStorage.getItem('theme');
+                if (!theme) {
+                    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    theme = prefersDark ? 'dark' : 'light';
+                }
+                document.documentElement.setAttribute('data-theme', theme);
+                window.NoteHubInitialTheme = theme;
+            } catch (error) {
+                document.documentElement.setAttribute('data-theme', 'light');
+                window.NoteHubInitialTheme = 'light';
+            }
+        })();
+    </script>
     <link rel="stylesheet" href="assets/css/styles.css">
     <link rel="icon" type="image/png" href="assets/favicon/favicon-96x96.png" sizes="96x96" />
     <link rel="icon" type="image/svg+xml" href="assets/favicon/favicon.svg" />
@@ -13,9 +29,39 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#ffffff" id="theme-color-meta">
+    <script>
+        (() => {
+            const themeColorMeta = document.getElementById('theme-color-meta');
+            if (themeColorMeta) {
+                themeColorMeta.content = window.NoteHubInitialTheme === 'dark' ? '#1e1e1e' : '#ffffff';
+            }
+        })();
+    </script>
     <link rel="manifest" href="assets/favicon/site.webmanifest" />
 </head>
 <body>
+    <div id="app-loading-screen" class="app-loading-screen" role="status" aria-live="polite" aria-busy="true">
+        <div class="app-loading-panel">
+            <div class="app-loading-brand">NoteHub</div>
+            <div class="app-loading-spinner" aria-hidden="true"></div>
+            <p id="app-loading-message">Loading your notes...</p>
+            <button id="app-loading-retry" class="loading-retry-btn" type="button" hidden>Retry</button>
+        </div>
+    </div>
+    <script>
+        window.NoteHubLoadingDelay = window.setTimeout(() => {
+            const loadingScreen = document.getElementById('app-loading-screen');
+            if (loadingScreen) {
+                loadingScreen.classList.add('visible');
+            }
+        }, 350);
+    </script>
+
+    <div id="connection-status" class="connection-status" role="status" aria-live="polite" hidden>
+        <span class="connection-status-dot" aria-hidden="true"></span>
+        <span id="connection-status-text">You are offline. Notes are saved locally until the connection returns.</span>
+    </div>
+
     <div class="app-container">
         <!-- Tabs Section -->
         <div class="tabs-container">
@@ -243,9 +289,9 @@
     </div>
 
     <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" onerror="window.NoteHubFirebaseLoadFailed = true"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" onerror="window.NoteHubFirebaseLoadFailed = true"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js" onerror="window.NoteHubFirebaseLoadFailed = true"></script>
 
     <!-- Application Scripts -->
     <script src="assets/js/services/firebase-config.js"></script>

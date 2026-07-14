@@ -8,8 +8,10 @@ class NoteHub {
         this.activeTabId = null;
         this.draggedTab = null;
         this.isInitialized = false;
+        this.offlineNotification = null;
 
         // Initialize the application
+        this.initializeBootUI();
         this.initializeApp();
     }
 
@@ -18,12 +20,22 @@ class NoteHub {
      */
     async initializeApp() {
         try {
+            this.updateLoadingMessage('Preparing NoteHub...');
+
             // Initialize Firebase if enabled
             if (appConfig.ENABLE_FIREBASE) {
-                await firebaseService.initialize();
+                this.updateLoadingMessage(this.isOffline()
+                    ? 'Working offline. Loading local notes...'
+                    : 'Connecting to cloud sync...');
+
+                const firebaseReady = await firebaseService.initialize();
+                if (!firebaseReady) {
+                    this.notifyCloudUnavailable();
+                }
             }
 
             // Initialize storage service
+            this.updateLoadingMessage('Opening your workspace...');
             await storageService.initialize(appConfig.DEFAULT_STORAGE_TYPE);
 
             // Initialize UI components
@@ -45,6 +57,7 @@ class NoteHub {
             });
 
             // Load existing data - always force refresh from cloud on page load
+            this.updateLoadingMessage('Loading your notes...');
             await this.loadFromStorage(true);
             
             // Bind events
@@ -65,9 +78,178 @@ class NoteHub {
             this.initializeThemeManager();
 
             this.isInitialized = true;
+            this.hideLoadingScreen();
         } catch (error) {
             console.error('Failed to initialize NoteHub:', error);
-            alert('Failed to initialize NoteHub. Please refresh the page.');
+            this.showLoadingError('NoteHub could not start. Check your connection and try again.');
+            if (typeof notificationManager !== 'undefined') {
+                notificationManager.error('Failed to initialize NoteHub. Please refresh the page.');
+            } else {
+                alert('Failed to initialize NoteHub. Please refresh the page.');
+            }
+        }
+    }
+
+    /**
+     * Initialize startup loading and connection state UI
+     */
+    initializeBootUI() {
+        this.loadingScreen = document.getElementById('app-loading-screen');
+        this.loadingMessage = document.getElementById('app-loading-message');
+        this.loadingRetryButton = document.getElementById('app-loading-retry');
+        this.connectionStatus = document.getElementById('connection-status');
+        this.connectionStatusText = document.getElementById('connection-status-text');
+
+        if (this.loadingRetryButton) {
+            this.loadingRetryButton.addEventListener('click', () => {
+                window.location.reload();
+            });
+        }
+
+        this.updateConnectionStatus();
+
+        window.addEventListener('offline', () => {
+            this.handleConnectionLost();
+        });
+
+        window.addEventListener('online', () => {
+            this.handleConnectionRestored();
+        });
+    }
+
+    /**
+     * Check browser connection state
+     */
+    isOffline() {
+        return typeof navigator !== 'undefined' && navigator.onLine === false;
+    }
+
+    /**
+     * Update startup loading message
+     * @param {string} message - Loading message
+     */
+    updateLoadingMessage(message) {
+        if (this.loadingMessage) {
+            this.loadingMessage.textContent = message;
+        }
+    }
+
+    /**
+     * Hide startup loading screen after the app is ready
+     */
+    hideLoadingScreen() {
+        if (window.NoteHubLoadingDelay) {
+            clearTimeout(window.NoteHubLoadingDelay);
+            window.NoteHubLoadingDelay = null;
+        }
+
+        if (!this.loadingScreen) return;
+
+        this.loadingScreen.classList.add('hidden');
+        this.loadingScreen.classList.remove('visible');
+        this.loadingScreen.setAttribute('aria-busy', 'false');
+        this.loadingScreen.setAttribute('aria-hidden', 'true');
+    }
+
+    /**
+     * Show startup error state with a retry action
+     * @param {string} message - Error message
+     */
+    showLoadingError(message) {
+        if (!this.loadingScreen) return;
+
+        this.loadingScreen.classList.remove('hidden');
+        this.loadingScreen.classList.add('error');
+        this.loadingScreen.setAttribute('aria-busy', 'false');
+        this.loadingScreen.removeAttribute('aria-hidden');
+        this.updateLoadingMessage(message);
+
+        if (this.loadingRetryButton) {
+            this.loadingRetryButton.hidden = false;
+        }
+    }
+
+    /**
+     * Show a clear warning when cloud dependencies cannot be loaded
+     */
+    notifyCloudUnavailable() {
+        const message = this.isOffline()
+            ? 'Cloud sync is unavailable while you are offline. Local notes are ready.'
+            : 'Cloud sync could not load. Check your connection if you need cloud notes.';
+
+        if (typeof notificationManager !== 'undefined') {
+            notificationManager.warning(message, { duration: 8000 });
+        }
+    }
+
+    /**
+     * Update the persistent connection warning banner
+     */
+    updateConnectionStatus() {
+        if (!this.connectionStatus) return;
+
+        if (this.isOffline()) {
+            if (this.connectionStatusText) {
+                this.connectionStatusText.textContent = 'You are offline. Notes are saved locally until the connection returns.';
+            }
+            this.connectionStatus.hidden = false;
+        } else {
+            this.connectionStatus.hidden = true;
+        }
+    }
+
+    /**
+     * Handle browser offline event
+     */
+    handleConnectionLost() {
+        this.updateConnectionStatus();
+
+        if (typeof notificationManager === 'undefined') return;
+
+        const hasOfflineNotice = this.offlineNotification && this.offlineNotification.parentNode;
+        if (!hasOfflineNotice) {
+            this.offlineNotification = notificationManager.warning(
+                'You are offline. Changes will stay local until the connection returns.',
+                { autoHide: false }
+            );
+        }
+    }
+
+    /**
+     * Handle browser online event
+     */
+    async handleConnectionRestored() {
+        this.updateConnectionStatus();
+
+        if (typeof notificationManager !== 'undefined') {
+            if (this.offlineNotification && this.offlineNotification.parentNode) {
+                notificationManager.dismiss(this.offlineNotification);
+                this.offlineNotification = null;
+            }
+
+            notificationManager.success('Back online. Cloud sync will resume automatically.');
+        }
+
+        await this.refreshCloudAfterReconnect();
+    }
+
+    /**
+     * Refresh cloud notes after a connection comes back
+     */
+    async refreshCloudAfterReconnect() {
+        if (typeof storageService === 'undefined' || typeof firebaseService === 'undefined') {
+            return;
+        }
+
+        const canRefreshCloud = storageService.storageType === 'cloud' &&
+            storageService.syncEnabled &&
+            firebaseService.isAuthenticated();
+
+        if (!canRefreshCloud) return;
+
+        const refreshed = await storageService.refreshDataFromCloud();
+        if (refreshed && typeof notificationManager !== 'undefined') {
+            notificationManager.info('Cloud notes refreshed.');
         }
     }
 

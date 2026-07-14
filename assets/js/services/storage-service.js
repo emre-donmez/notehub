@@ -29,6 +29,13 @@ class StorageService {
             firebaseService.onAuthStateChange((user) => {
                 this.handleAuthStateChange(user);
             });
+
+            if (this.storageType === 'cloud' && typeof firebaseService.waitForInitialAuthState === 'function') {
+                const user = await firebaseService.waitForInitialAuthState();
+                if (user) {
+                    await this.enableSync();
+                }
+            }
         }
 
         this.setupPageVisibilityListeners();
@@ -643,8 +650,25 @@ class StorageService {
             return this.loadFromLocalStorage();
         } catch (error) {
             console.error('Failed to load data from cloud, using localStorage:', error);
+            this.handleCloudLoadError(error);
             return this.loadFromLocalStorage();
         }
+    }
+
+    /**
+     * Notify the app and user when cloud loading falls back to local data
+     */
+    handleCloudLoadError(error) {
+        if (typeof notificationManager !== 'undefined') {
+            notificationManager.warning(
+                'Could not load cloud notes. Local notes are available while you check your connection.',
+                { duration: 7000 }
+            );
+        }
+
+        document.dispatchEvent(new CustomEvent('cloudLoadFailed', {
+            detail: { error }
+        }));
     }
 
     /**

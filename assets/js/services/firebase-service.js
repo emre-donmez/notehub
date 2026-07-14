@@ -10,6 +10,9 @@ class FirebaseService {
         this.user = null;
         this.isInitialized = false;
         this.authStateChangeCallbacks = [];
+        this.initialAuthStateResolved = false;
+        this.initialAuthStatePromise = null;
+        this.resolveInitialAuthState = null;
     }
 
     /**
@@ -34,10 +37,17 @@ class FirebaseService {
             this.app = firebase.initializeApp(firebaseConfig);
             this.db = firebase.firestore();
             this.auth = firebase.auth();
+            this.initialAuthStatePromise = new Promise((resolve) => {
+                this.resolveInitialAuthState = resolve;
+            });
 
             // Set up authentication state listener
             this.auth.onAuthStateChanged((user) => {
                 this.user = user;
+                if (!this.initialAuthStateResolved) {
+                    this.initialAuthStateResolved = true;
+                    this.resolveInitialAuthState(user);
+                }
                 this.authStateChangeCallbacks.forEach(callback => callback(user));
             });
 
@@ -58,10 +68,36 @@ class FirebaseService {
     }
 
     /**
+     * Wait briefly for Firebase to report the initial signed-in user
+     */
+    async waitForInitialAuthState(timeoutMs = 2500) {
+        if (this.initialAuthStateResolved) {
+            return this.user;
+        }
+
+        if (!this.initialAuthStatePromise) {
+            return this.user;
+        }
+
+        return new Promise((resolve) => {
+            const timeout = setTimeout(() => {
+                resolve(this.user);
+            }, timeoutMs);
+
+            this.initialAuthStatePromise.then((user) => {
+                clearTimeout(timeout);
+                resolve(user);
+            });
+        });
+    }
+
+    /**
      * Sign in with Google
      */
     async signInWithGoogle() {
-        if (!this.auth) return null;
+        if (!this.auth) {
+            throw new Error('Firebase authentication is not available');
+        }
 
         try {
             const provider = new firebase.auth.GoogleAuthProvider();

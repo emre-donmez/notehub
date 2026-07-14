@@ -341,8 +341,17 @@ class CloudSyncUI {
      */
     async signInWithGoogle() {
         try {
+            if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+                notificationManager.warning('You are offline. Connect to the internet before signing in.');
+                return;
+            }
+
             if (typeof firebaseService !== 'undefined' && firebaseService.signInWithGoogle) {
-                await firebaseService.signInWithGoogle();
+                const user = await firebaseService.signInWithGoogle();
+                if (!user) {
+                    throw new Error('No user returned from Google sign-in');
+                }
+
                 notificationManager.success('Signed in successfully! Your notes will sync automatically.');
             }
         } catch (error) {
